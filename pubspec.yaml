@@ -76,6 +76,10 @@ flutter:
     - images/logo2.png
     - images/maxresdefault.jpg
     - images/smkn4bogor_3.jpg
+    - images/_0039.png
+    - images/_0035.png
+    - images/7309682.png
+    
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
