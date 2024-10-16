@@ -1,28 +1,22 @@
 import 'package:flutter/material.dart';
-import 'dart:html' as html;
 import 'package:http/http.dart' as http;
+import 'dart:typed_data';
+import '../helpers/web_downloader.dart' if (dart.library.io) '../helpers/mobile_downloader.dart';
 
 class PictureDetailPage extends StatelessWidget {
   final String imageUrl;
 
   PictureDetailPage({required this.imageUrl});
 
-  Future<void> downloadImageWeb(BuildContext context) async {
+  Future<void> downloadImageHandler(BuildContext context) async {
     try {
       var response = await http.get(Uri.parse(imageUrl));
       if (response.statusCode == 200) {
-        final blob = html.Blob([response.bodyBytes]);
-        final url = html.Url.createObjectUrlFromBlob(blob);
-
-        final anchor = html.AnchorElement(href: url)
-          ..setAttribute("download", "DownloadedImage.jpg")
-          ..click();
-
-        html.Url.revokeObjectUrl(url);
+        downloadImage(response.bodyBytes); // Conditional import akan otomatis memilih platform
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Image downloaded successfully!'),
-            backgroundColor: Color(0xFF4A6FA5), // Konsistensi warna dengan tema
+            backgroundColor: Color(0xFF4A6FA5),
           ),
         );
       } else {
@@ -49,7 +43,7 @@ class PictureDetailPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Picture Detail', style: TextStyle(color: Colors.white)),
-        backgroundColor: Color(0xFF4A6FA5), // Konsistensi dengan BasePage
+        backgroundColor: Color(0xFF4A6FA5),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
@@ -76,8 +70,8 @@ class PictureDetailPage extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => downloadImageWeb(context),
-        backgroundColor: Color(0xFF4A6FA5), // Konsistensi warna FAB
+        onPressed: () => downloadImageHandler(context),
+        backgroundColor: Color(0xFF4A6FA5),
         child: Icon(Icons.download, color: Colors.white),
       ),
     );
