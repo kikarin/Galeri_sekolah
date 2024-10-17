@@ -16,6 +16,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   bool isLoading = false;
   String errorMessage = '';
   bool isLoginMode = true;
+  bool isPasswordVisible = false; // Track password visibility
   final _formKey = GlobalKey<FormState>();
 
   late AnimationController _controller;
@@ -24,7 +25,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   @override
   void initState() {
     super.initState();
-    // Animation controller setup with a lighter configuration
     _controller = AnimationController(
       duration: Duration(milliseconds: 1500),
       vsync: this,
@@ -127,6 +127,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -140,7 +142,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       ),
       body: Stack(
         children: [
-          // Optimized gradient background
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -152,175 +153,192 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           ),
           Center(
             child: SingleChildScrollView(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Logo with lighter animation and circular shadow
-                  AnimatedBuilder(
-                    animation: _controller,
-                    builder: (context, child) {
-                      return Transform.scale(
-                        scale: _animation.value,
-                        child: Container(
-                          width: 150,
-                          height: 150,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color.fromARGB(255, 255, 255, 255).withOpacity(0.2),
-                                blurRadius: 10,
-                                offset: Offset(0, 5),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    AnimatedBuilder(
+                      animation: _controller,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: _animation.value,
+                          child: Container(
+                            width: 150,
+                            height: 150,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.white.withOpacity(0.2),
+                                  blurRadius: 10,
+                                  offset: Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: ClipOval(
+                              child: Image.asset(
+                                'images/7309682.png',
+                                fit: BoxFit.cover,
                               ),
-                            ],
-                          ),
-                          child: ClipOval(
-                            child: Image.asset(
-                              'images/7309682.png',
-                              fit: BoxFit.cover,
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                  SizedBox(height: 20),
-                  AnimatedContainer(
-                    duration: Duration(milliseconds: 600),
-                    curve: Curves.easeInOut,
-                    width: MediaQuery.of(context).size.width * 0.85,
-                    height: isLoginMode ? 420 : 520,
-                    padding: EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(30),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: Offset(0, 5),
-                        ),
-                      ],
+                        );
+                      },
                     ),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Title based on mode (Login or Register)
-                          Text(
-                            isLoginMode ? 'Login Account' : 'Create Your Account',
-                            style: TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF446496),
-                            ),
-                          ),
-                          SizedBox(height: 20),
-                          if (!isLoginMode)
-                            TextFormField(
-                              controller: nameController,
-                              decoration: InputDecoration(
-                                labelText: 'Name',
-                                prefixIcon: Icon(Icons.person),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter your name';
-                                }
-                                return null;
-                              },
-                            ),
-                          if (!isLoginMode) SizedBox(height: 20),
-                          TextFormField(
-                            controller: emailController,
-                            decoration: InputDecoration(
-                              labelText: 'Email',
-                              prefixIcon: Icon(Icons.email),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                                return 'Please enter a valid email';
-                              }
-                              return null;
-                            },
-                          ),
-                          SizedBox(height: 20),
-                          TextFormField(
-                            controller: passwordController,
-                            decoration: InputDecoration(
-                              labelText: 'Password',
-                              prefixIcon: Icon(Icons.lock),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            obscureText: true,
-                            validator: (value) {
-                              if (value == null || value.length < 6) {
-                                return 'Password must be at least 6 characters';
-                              }
-                              return null;
-                            },
-                          ),
-                          SizedBox(height: 20),
-                          if (errorMessage.isNotEmpty)
-                            Text(
-                              errorMessage,
-                              style: TextStyle(color: Colors.red, fontSize: 16),
-                            ),
-                          SizedBox(height: 10),
-                          isLoading
-                              ? CircularProgressIndicator()
-                              : ElevatedButton(
-                                  onPressed: () {
-                                    if (isLoginMode) {
-                                      login();
-                                    } else {
-                                      register();
-                                    }
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Color(0xFF446496),
-                                    padding: EdgeInsets.symmetric(horizontal: 100, vertical: 15),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(30),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    isLoginMode ? 'Login' : 'Register',
-                                    style: TextStyle(color: Colors.white, fontSize: 18),
-                                  ),
-                                ),
-                          SizedBox(height: 20),
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                isLoginMode = !isLoginMode;
-                              });
-                            },
-                            child: Text(
-                              isLoginMode
-                                  ? "Don't have an account? Register here"
-                                  : "Already have an account? Login here",
-                              style: TextStyle(color: Color(0xFF446496), fontSize: 16),
-                            ),
+                    SizedBox(height: 30),
+                    AnimatedContainer(
+                      duration: Duration(milliseconds: 600),
+                      curve: Curves.easeInOut,
+                      width: screenWidth * 0.85,
+                      padding: EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: Offset(0, 5),
                           ),
                         ],
                       ),
+                      child: Form(
+                        key: _formKey,
+                        child: AnimatedSwitcher(
+                          duration: Duration(milliseconds: 500),
+                          transitionBuilder: (child, animation) {
+                            return FadeTransition(opacity: animation, child: child);
+                          },
+                          child: isLoginMode ? buildLoginForm() : buildRegisterForm(),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                    SizedBox(height: 20),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          isLoginMode = !isLoginMode;
+                        });
+                      },
+                      child: Text(
+                        isLoginMode
+                            ? "Don't have an account? Register here"
+                            : "Already have an account? Login here",
+                        style: TextStyle(color: Color.fromARGB(255, 59, 59, 59), fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget buildLoginForm() {
+    return Column(
+      key: ValueKey(1),
+      children: [
+        Text(
+          'Login Account',
+          style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF446496)),
+        ),
+        SizedBox(height: 30),
+        buildEmailPasswordFields(),
+        SizedBox(height: 20),
+        buildActionButton('Login', login),
+      ],
+    );
+  }
+
+  Widget buildRegisterForm() {
+    return Column(
+      key: ValueKey(2),
+      children: [
+        Text(
+          'Create Your Account',
+          style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF446496)),
+        ),
+        SizedBox(height: 30),
+        TextFormField(
+          controller: nameController,
+          decoration: InputDecoration(
+            labelText: 'Name',
+            prefixIcon: Icon(Icons.person),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) return 'Please enter your name';
+            return null;
+          },
+        ),
+        SizedBox(height: 20),
+        buildEmailPasswordFields(),
+        SizedBox(height: 20),
+        buildActionButton('Register', register),
+      ],
+    );
+  }
+
+  Widget buildEmailPasswordFields() {
+    return Column(
+      children: [
+        TextFormField(
+          controller: emailController,
+          decoration: InputDecoration(
+            labelText: 'Email',
+            prefixIcon: Icon(Icons.email),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+          ),
+          validator: (value) {
+            if (value == null || !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+              return 'Please enter a valid email';
+            }
+            return null;
+          },
+        ),
+        SizedBox(height: 20),
+        TextFormField(
+          controller: passwordController,
+          obscureText: !isPasswordVisible,
+          decoration: InputDecoration(
+            labelText: 'Password',
+            prefixIcon: Icon(Icons.lock),
+            suffixIcon: IconButton(
+              icon: Icon(isPasswordVisible ? Icons.visibility : Icons.visibility_off),
+              onPressed: () {
+                setState(() {
+                  isPasswordVisible = !isPasswordVisible;
+                });
+              },
+            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+          ),
+          validator: (value) {
+            if (value == null || value.length < 6) return 'Password must be at least 6 characters';
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget buildActionButton(String text, Function onPressed) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () => onPressed(),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Color(0xFF446496),
+          padding: EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        ),
+        child: isLoading
+            ? CircularProgressIndicator(color: Colors.white)
+            : Text(text, style: TextStyle(color: Colors.white, fontSize: 18)),
       ),
     );
   }

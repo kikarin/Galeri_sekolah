@@ -195,91 +195,89 @@ class _BasePageState extends State<BasePage>
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      title: Hero(
-        tag: 'appBarTitle',
-        child: Text(
-          widget.title,
-          style: TextStyle(
-            color: Colors.white
-                .withOpacity(0.95), // Teks lebih cerah namun tetap lembut
-            fontWeight:
-                FontWeight.w600, // Font lebih halus, tidak terlalu tebal
-            fontSize: 20, // Ukuran font yang sesuai
-            letterSpacing:
-                1.1, // Kurangi sedikit spasi antar huruf untuk tampilan lebih rapi
-            shadows: [
-              Shadow(
-                blurRadius: 3.0, // Sedikit kurangi blur
-                color: Colors.black45, // Bayangan lebih lembut
-                offset: Offset(1.5, 1.5), // Efek bayangan lebih ringan
-              ),
-            ],
-          ),
+PreferredSizeWidget _buildAppBar() {
+  return AppBar(
+    title: Hero(
+      tag: 'appBarTitle',
+      child: Text(
+        widget.title,
+        style: TextStyle(
+          color: Colors.white.withOpacity(0.95),
+          fontWeight: FontWeight.w600,
+          fontSize: 20,
+          letterSpacing: 1.1,
+          shadows: [
+            Shadow(
+              blurRadius: 3.0,
+              color: Colors.black45,
+              offset: Offset(1.5, 1.5),
+            ),
+          ],
         ),
       ),
-      centerTitle: true,
-      flexibleSpace: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color.fromARGB(255, 68, 100, 150),
-              Color.fromARGB(255, 136, 165, 219)
-            ], // Gradasi warna yang smooth
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+    ),
+    centerTitle: true,
+    flexibleSpace: Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color.fromARGB(255, 68, 100, 150),
+            Color.fromARGB(255, 136, 165, 219),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
       ),
-      elevation: 6, // Turunkan elevasi untuk bayangan lebih halus
-      shadowColor: Colors.black12, // Bayangan lebih lembut pada AppBar
-      iconTheme: IconThemeData(color: Colors.white),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 20),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(50),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0), // Efek blur
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color.fromARGB(255, 19, 17, 17)
-                      .withOpacity(0.2), // Warna semi-transparan
-                  borderRadius: BorderRadius.circular(50),
-                  border: Border.all(
-                    color: const Color.fromARGB(255, 0, 0, 0)
-                        .withOpacity(0.2), // Border semi-transparan
-                    width: 1.5,
-                  ),
+    ),
+    elevation: 6,
+    shadowColor: Colors.black12,
+    iconTheme: IconThemeData(color: Colors.white),
+    actions: [
+      Padding(
+        padding: const EdgeInsets.only(right: 10), // Sesuaikan padding kanan
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(50),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color.fromARGB(255, 19, 17, 17).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(50),
+                border: Border.all(
+                  color: const Color.fromARGB(255, 0, 0, 0).withOpacity(0.2),
+                  width: 1.5,
                 ),
+              ),
+              child: SizedBox(
+                height: 30, // Atur tinggi tombol
                 child: ElevatedButton(
                   onPressed: _role == null
                       ? () => Navigator.pushNamed(context, '/login')
                       : _logout,
                   style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    backgroundColor:
-                        const Color.fromARGB(0, 255, 255, 255), // Transparan
-                    foregroundColor: const Color.fromARGB(255, 0, 0, 0),
-                    elevation: 0, // Hilangkan elevasi untuk efek glassmorphism
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14, // Kurangi padding agar tidak terlalu besar
+                      vertical: 5,
+                    ),
+                    backgroundColor: Colors.transparent, // Transparan
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(50),
                     ),
                   ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisSize: MainAxisSize.min, // Sesuaikan ukuran tombol
                     children: [
                       Icon(
                         _role == null ? Icons.login : Icons.logout,
-                        size: 22,
+                        size: 18, // Sesuaikan ukuran ikon
                         color: Colors.white,
                       ),
-                      SizedBox(width: 5),
+                      const SizedBox(width: 5),
                       Text(
                         _role == null ? 'Login' : 'Logout',
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: const TextStyle(
+                          fontSize: 14, // Font lebih kecil
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
@@ -291,9 +289,11 @@ class _BasePageState extends State<BasePage>
             ),
           ),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
+
 
   // Drawer dengan Profile
   Widget _buildDrawer() {
