@@ -17,6 +17,8 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
   bool isLoading = true;
   Map<String, dynamic> photo = {};
   List<dynamic> comments = [];
+  bool isLiked = false;
+  int likeCount = 0;
   TextEditingController commentController = TextEditingController();
 
   @override
@@ -26,46 +28,110 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
   }
 
   Future<void> fetchPhotoDetails() async {
-    final response = await http.get(
-      Uri.parse(
-          'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/photos/${widget.photoId}'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    );
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      setState(() {
-        photo = data;
-        comments = data['comments'] ?? [];
-        isLoading = false;
-      });
-    } else {
-      setState(() {
-        isLoading = false;
-      });
+    try {
+      final response = await http.get(
+        Uri.parse('http://192.168.18.2:8000/api/photos/${widget.photoId}'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        setState(() {
+          photo = data['photo'];
+          comments = data['photo']['comments'] ?? [];
+          likeCount = data['like_count'] ?? 0;
+          isLiked = data['is_liked'] ?? false;
+          isLoading = false;
+        });
+
+        print('Fetched photo details: $data');
+      } else {
+        print('Failed to load photo details: ${response.body}');
+        setState(() => isLoading = false);
+      }
+    } catch (e) {
+      print('Error: $e');
+      setState(() => isLoading = false);
     }
   }
 
-  Future<void> sendComment() async {
+  Future<void> toggleLike() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
-    final userId = prefs.getInt('user_id');
-    final userName = prefs.getString('user_name');
-    final commentText = commentController.text;
 
-    if (commentText.isEmpty) {
-      return;
-    }
-
-    if (token == null || userId == null) {
+    if (token == null) {
+      print('Token is null. Please login first.');
       Navigator.pushReplacementNamed(context, '/login');
       return;
     }
 
+    try {
+      // Simpan nilai liked sebelumnya untuk menghindari perubahan status UI yang tidak konsisten.
+      bool previousLikedState = isLiked;
+      int previousLikeCount = likeCount;
+
+      // Optimis: Ubah state UI sebelum respons.
+      setState(() {
+        isLiked = !isLiked;
+        likeCount += isLiked ? 1 : -1;
+      });
+
+      final response = await http.post(
+        Uri.parse('http://192.168.18.2:8000/api/photos/${widget.photoId}/like'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        // Jika API gagal, kembalikan state UI ke kondisi sebelumnya.
+        setState(() {
+          isLiked = previousLikedState;
+          likeCount = previousLikeCount;
+        });
+        print(
+            'Failed to toggle like: ${response.statusCode} - ${response.body}');
+      } else {
+        print('Like toggled successfully.');
+      }
+    } catch (e) {
+      print('Error during like toggle: $e');
+
+      // Jika terjadi error, kembalikan state UI ke kondisi sebelumnya.
+      setState(() {
+        isLiked = !isLiked;
+        likeCount += isLiked ? 1 : -1;
+      });
+    }
+  }
+
+Future<void> sendComment() async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('auth_token'); // Ambil token untuk cek login
+  final userId = prefs.getInt('user_id');
+  final userName = prefs.getString('user_name');
+  final commentText = commentController.text;
+
+  if (token == null) {
+    // Jika token tidak ada, pengguna belum login, arahkan ke halaman login
+    print('User is not logged in. Redirecting to login page.');
+    Navigator.pushReplacementNamed(context, '/login');
+    return; // Kembalikan dari fungsi agar tidak melanjutkan eksekusi
+  }
+
+  if (commentText.isEmpty) return; // Jika komentar kosong, tidak lanjut
+
+  try {
     final response = await http.post(
-      Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/comments'),
+      Uri.parse('http://192.168.18.2:8000/api/comments'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -85,27 +151,55 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
       };
       setState(() {
         comments.add(newComment);
-        commentController.clear();
+        commentController.clear(); // Bersihkan kolom input setelah komentar dikirim
       });
+    } else {
+      print('Failed to send comment: ${response.body}');
+    }
+  } catch (e) {
+    print('Error while sending comment: $e');
+  }
+}
+
+
+  Future<void> deleteComment(int commentId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    try {
+      final response = await http.delete(
+        Uri.parse('http://192.168.18.2:8000/api/comments/$commentId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          comments.removeWhere((comment) => comment['id'] == commentId);
+        });
+      } else {
+        print('Failed to delete comment: ${response.body}');
+      }
+    } catch (e) {
+      print('Error while deleting comment: $e');
     }
   }
 
-  // Fungsi untuk memformat tanggal agar lebih pendek dan rapi
   String formatDate(String? dateString) {
     if (dateString == null) return 'Tidak tersedia';
     final DateTime parsedDate = DateTime.parse(dateString);
-    return DateFormat('dd MMM yyyy')
-        .format(parsedDate); // Contoh format: 01 Jan 2024
+    return DateFormat('dd MMM yyyy').format(parsedDate);
   }
 
   @override
   Widget build(BuildContext context) {
-    final isWideScreen = MediaQuery.of(context).size.width > 600;
-
     return Scaffold(
       appBar: AppBar(
-          title: Text(photo['title'] ?? 'Photo Detail'),
-          backgroundColor: Color.fromARGB(255, 99, 130, 189)),
+        title: Text(photo['title'] ?? 'Photo Detail'),
+        backgroundColor: Color.fromARGB(255, 99, 130, 189),
+      ),
       body: isLoading
           ? Center(child: CircularProgressIndicator(color: Color(0xFF5C6BC0)))
           : SingleChildScrollView(
@@ -114,27 +208,23 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    isWideScreen
-                        ? Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                  child: _buildImage(photo['image_url'] ?? '')),
-                              SizedBox(width: 20),
-                              Expanded(child: _buildPhotoDetails()),
-                            ],
-                          )
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildImage(photo['image_url'] ?? ''),
-                              SizedBox(height: 20),
-                              _buildPhotoDetails(),
-                            ],
+                    _buildImage(photo['image_url'] ?? ''),
+                    const SizedBox(height: 20),
+                    _buildPhotoDetails(),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            isLiked ? Icons.favorite : Icons.favorite_border,
+                            color: isLiked ? Colors.red : Colors.grey,
                           ),
-                    SizedBox(height: 20),
-                    Divider(thickness: 1.5, color: Colors.grey[300]),
-                    Text(
+                          onPressed: toggleLike,
+                        ),
+                        Text('$likeCount likes'),
+                      ],
+                    ),
+                    Divider(thickness: 1.5, color: Colors.grey.shade300),
+                    const Text(
                       'Komentar',
                       style: TextStyle(
                         fontSize: 20,
@@ -142,7 +232,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
                         color: Color.fromARGB(255, 68, 100, 150),
                       ),
                     ),
-                    SizedBox(height: 10),
+                    const SizedBox(height: 10),
                     _buildCommentList(),
                   ],
                 ),
@@ -152,79 +242,25 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
     );
   }
 
-  // Gambar utama dengan BoxFit.cover dan responsive height
   Widget _buildImage(String imageUrl) {
     return Container(
-      constraints: BoxConstraints(
-        minHeight: 200,
-        maxHeight: MediaQuery.of(context).size.width > 600 ? 400 : 300,
-      ),
+      constraints: BoxConstraints(minHeight: 200, maxHeight: 300),
       width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: Offset(4, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.network(
-          imageUrl,
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded /
-                        (loadingProgress.expectedTotalBytes ?? 1)
-                    : null,
-                color: Color(0xFF5C6BC0),
-              ),
-            );
-          },
-          errorBuilder: (context, error, stackTrace) {
-            return const Center(
-                child: Icon(
-              Icons.broken_image,
-              size: 50,
-              color: Colors.grey,
-            ));
-          },
-        ),
-      ),
+      child: Image.network(imageUrl, fit: BoxFit.cover),
     );
   }
 
-  // Deskripsi dan informasi tambahan dari foto (tanggal saja, fotografer dihapus)
   Widget _buildPhotoDetails() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          photo['description'] ?? 'Deskripsi tidak tersedia',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey[800],
-          ),
-        ),
-        SizedBox(height: 10),
-        Text(
-          'Tanggal: ${formatDate(photo['created_at'])}', // Format tanggal diperbaiki
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey[600],
-          ),
-        ),
+        Text(photo['description'] ?? 'Deskripsi tidak tersedia'),
+        const SizedBox(height: 10),
+        Text('Tanggal: ${formatDate(photo['created_at'])}'),
       ],
     );
   }
 
-  // List Komentar dengan desain responsif
   Widget _buildCommentList() {
     return ListView.separated(
       shrinkWrap: true,
@@ -232,27 +268,33 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
       itemCount: comments.length,
       itemBuilder: (context, index) {
         final comment = comments[index];
-        final userName =
-            comment['user'] != null ? comment['user']['name'] : 'Anonim';
         return ListTile(
-          leading: CircleAvatar(
-            backgroundColor: Colors.grey[300],
-            child: Text(
-              userName[0].toUpperCase(),
-              style: TextStyle(color: Colors.black),
-            ),
-          ),
           title: Text(comment['content']),
-          subtitle: Text(userName),
+          subtitle: Text(comment['user']['name']),
+          trailing: _buildDeleteIcon(comment['user']['id'], comment['id']),
         );
       },
-      separatorBuilder: (context, index) {
-        return Divider(color: Colors.grey[300]);
+      separatorBuilder: (context, index) => const Divider(),
+    );
+  }
+
+  Widget _buildDeleteIcon(int? commentUserId, int commentId) {
+    return FutureBuilder<SharedPreferences>(
+      future: SharedPreferences.getInstance(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return SizedBox.shrink();
+        final loggedInUserId = snapshot.data?.getInt('user_id');
+        if (loggedInUserId == commentUserId) {
+          return IconButton(
+            icon: Icon(Icons.delete, color: Colors.red),
+            onPressed: () => deleteComment(commentId),
+          );
+        }
+        return SizedBox.shrink();
       },
     );
   }
 
-  // Input Komentar dengan tata letak responsif
   Widget _buildCommentInput() {
     return Padding(
       padding: const EdgeInsets.all(8.0),
@@ -261,29 +303,14 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
           Expanded(
             child: TextField(
               controller: commentController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Tambahkan komentar...',
-                labelStyle: TextStyle(color: Colors.grey[700]),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Color(0xFF5C6BC0)),
-                ),
               ),
             ),
           ),
-          SizedBox(width: 8),
-          ElevatedButton(
+          IconButton(
+            icon: const Icon(Icons.send),
             onPressed: sendComment,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color.fromARGB(255, 68, 100, 150), 
-              shape: CircleBorder(),
-              padding: EdgeInsets.all(14),
-            ),
-            child: Icon(Icons.send, color: Colors.white),
           ),
         ],
       ),

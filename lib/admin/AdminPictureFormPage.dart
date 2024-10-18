@@ -1,7 +1,8 @@
-// lib/pages/AdminPictureFormPage.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class AdminPictureFormPage extends StatefulWidget {
   final Map<String, dynamic>? picture;
@@ -15,67 +16,76 @@ class AdminPictureFormPage extends StatefulWidget {
 
 class _AdminPictureFormPageState extends State<AdminPictureFormPage> {
   final _formKey = GlobalKey<FormState>();
-  TextEditingController _imageUrlController = TextEditingController();
+  final TextEditingController _imageUrlController = TextEditingController();
+  File? _selectedImage;
   bool isLoading = false;
   bool isEditMode = false;
+
+  final picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
     if (widget.picture != null) {
       isEditMode = true;
-      _imageUrlController.text = widget.picture!['image_url'];
+      _imageUrlController.text = widget.picture!['image_url'] ?? '';
     }
   }
 
-  Future<void> savePicture() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
+  /// Fungsi untuk memilih gambar dari galeri
+  Future<void> _pickImage() async {
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImage = File(pickedFile.path);
+        _imageUrlController.clear(); // Kosongkan URL jika gambar dipilih
+      });
     }
+  }
+
+  /// Fungsi untuk menyimpan gambar baru atau mengupdate gambar yang ada
+  Future<void> savePicture() async {
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       isLoading = true;
     });
 
     try {
+      // Tentukan URL untuk add dan edit
       final url = isEditMode
-          ? 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/pictures/${widget.picture!['id']}'
-          : 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/albums/${widget.albumId}/pictures';
+          ? 'http://192.168.18.2:8000/api/pictures/${widget.picture!['id']}?_method=PUT'
+          : 'http://192.168.18.2:8000/api/albums/${widget.albumId}/pictures';
 
-      final method = isEditMode ? 'PUT' : 'POST';
+      // Gunakan POST untuk multipart request
+      final request = http.MultipartRequest('POST', Uri.parse(url));
 
-      var request = http.Request(method, Uri.parse(url));
-      request.headers.addAll({'Content-Type': 'application/json'});
-      request.body = jsonEncode({
-        'image_url': _imageUrlController.text,
-        'album_id': isEditMode ? null : widget.albumId,
-      });
+      // Tambahkan field gambar atau URL
+      request.fields['album_id'] = widget.albumId.toString();
+      if (_selectedImage != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'image', // Field name di Laravel
+            _selectedImage!.path,
+          ),
+        );
+      } else if (_imageUrlController.text.isNotEmpty) {
+        request.fields['image_url'] = _imageUrlController.text;
+      } else {
+        throw Exception('Please provide an image or image URL.');
+      }
 
+      // Kirim request dan cek respons
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        Navigator.pop(context);
+        Navigator.pop(context, true); // Berhasil, kembali ke halaman sebelumnya
       } else {
-        throw Exception(
-            'Failed to save picture: ${response.statusCode} - ${response.body}');
+        throw Exception('Failed to save picture: ${response.body}');
       }
     } catch (e) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text('Error'),
-          content: Text(e.toString()),
-          actions: <Widget>[
-            TextButton(
-              child: Text('Close'),
-              onPressed: () {
-                Navigator.of(ctx).pop();
-              },
-            ),
-          ],
-        ),
-      );
+      _showErrorDialog(e.toString());
     } finally {
       if (mounted) {
         setState(() {
@@ -85,35 +95,76 @@ class _AdminPictureFormPageState extends State<AdminPictureFormPage> {
     }
   }
 
+  /// Fungsi untuk menampilkan pesan kesalahan
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Close'),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _imageUrlController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.picture == null ? 'Add Picture' : 'Edit Picture'),
+        title: Text(isEditMode ? 'Edit Picture' : 'Add Picture'),
       ),
       body: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: isLoading
-            ? Center(child: CircularProgressIndicator())
+            ? const Center(child: CircularProgressIndicator())
             : Form(
                 key: _formKey,
                 child: ListView(
                   children: [
+                    if (!isEditMode) // Tombol pilih gambar saat tambah baru
+                      ElevatedButton(
+                        onPressed: _pickImage,
+                        child: const Text('Pick Image from Gallery'),
+                      ),
+                    const SizedBox(height: 10),
+                    if (_selectedImage != null) // Tampilkan gambar yang dipilih
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        child: Image.file(
+                          _selectedImage!,
+                          height: 150,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    const SizedBox(height: 10),
                     TextFormField(
                       controller: _imageUrlController,
-                      decoration: InputDecoration(labelText: 'Image URL'),
+                      decoration: const InputDecoration(labelText: 'Image URL'),
                       validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter an image URL.';
+                        if (_selectedImage == null &&
+                            (value == null || value.isEmpty)) {
+                          return 'Please provide an image or image URL.';
                         }
-                        // Add additional URL validation here if needed
                         return null;
                       },
                     ),
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: isLoading ? null : savePicture,
-                      child: Text('Save'),
+                      child: const Text('Save'),
                     ),
                   ],
                 ),

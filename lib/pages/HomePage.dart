@@ -31,7 +31,7 @@ String? _email;
 
     if (token != null && userId != null) {
       final response = await http.get(
-        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/users/$userId'),
+        Uri.parse('http://192.168.18.2:8000/api/users/$userId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

@@ -22,7 +22,7 @@ class _AdminGalleryPageState extends State<AdminGalleryPage> {
 
   Future<void> fetchGalleries() async {
     final response = await http.get(
-      Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/galleries'),
+      Uri.parse('http://192.168.18.2:8000/api/galleries'),
       headers: {
         'Content-Type': 'application/json',
       },
@@ -44,7 +44,7 @@ class _AdminGalleryPageState extends State<AdminGalleryPage> {
 
   Future<void> deleteGallery(int id) async {
     final response = await http.delete(
-      Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/galleries/$id'),
+      Uri.parse('http://192.168.18.2:8000/api/galleries/$id'),
       headers: {
         'Content-Type': 'application/json',
       },

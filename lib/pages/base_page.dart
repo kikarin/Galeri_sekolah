@@ -55,7 +55,7 @@ class _BasePageState extends State<BasePage>
 
     if (token != null && userId != null) {
       final response = await http.get(
-        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/users/$userId'),
+        Uri.parse('http://192.168.18.2:8000/api/users/$userId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -296,71 +296,70 @@ PreferredSizeWidget _buildAppBar() {
 
 
   // Drawer dengan Profile
-  Widget _buildDrawer() {
-    return Drawer(
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color.fromARGB(255, 136, 165, 219),
-              Color.fromARGB(255, 68, 100, 150)
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            UserAccountsDrawerHeader(
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage('assets/images/drawer_bg.jpg'),
-                  fit: BoxFit.cover,
-                ),
-              ),
-              accountName: isLoadingProfile
-                  ? Text('Guest',
-                      style: TextStyle(fontSize: 18, color: Colors.black))
-                  : Text(_name != null ? _name! : 'Guest User',
-                      style: TextStyle(fontSize: 18, color: Colors.black)),
-              accountEmail: isLoadingProfile
-                  ? Text('guest@example.com',
-                      style: TextStyle(color: Colors.black))
-                  : Text(_email != null ? _email! : 'Not logged in',
-                      style: TextStyle(color: Colors.black)),
-              currentAccountPicture: CircleAvatar(
-                backgroundColor: Colors.black,
-                child: _role != null
-                    ? Icon(Icons.person, color: Colors.white, size: 40)
-                    : Icon(Icons.person_outline, color: Colors.grey, size: 40),
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  _buildDrawerItem(Icons.home, 'Home', '/home'),
-                  _buildDrawerItem(
-                      Icons.account_circle,
-                      'My Profile',
-                      '/user_profile',
-                      () => _checkLoginStatusAndNavigate('/user_profile')),
-                  _buildDrawerItem(Icons.photo_album, 'Gallery', '/gallery'),
-                  _buildDrawerItem(Icons.photo, 'Albums', '',
-                      () => _checkLoginStatusAndNavigate('/albums')),
-                  _buildDrawerItem(Icons.info, 'Info', '/user_info'),
-                  _buildDrawerItem(Icons.event, 'Agenda', '/user_agenda'),
-                  if (_role != null)
-                    _buildDrawerItem(Icons.exit_to_app, 'Logout', '', _logout),
-                ],
-              ),
-            ),
+Widget _buildDrawer() {
+  return Drawer(
+    child: Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color.fromARGB(255, 136, 165, 219),
+            Color.fromARGB(255, 68, 100, 150)
           ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
       ),
-    );
-  }
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          UserAccountsDrawerHeader(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/drawer_bg.jpg'),
+                fit: BoxFit.cover,
+              ),
+            ),
+            accountName: isLoadingProfile
+                ? Text('Guest', style: TextStyle(fontSize: 18, color: Colors.black))
+                : Text(_name ?? 'Guest User', style: TextStyle(fontSize: 18, color: Colors.black)),
+            accountEmail: isLoadingProfile
+                ? Text('guest@example.com', style: TextStyle(color: Colors.black))
+                : Text(_email ?? 'Not logged in', style: TextStyle(color: Colors.black)),
+            currentAccountPicture: CircleAvatar(
+              backgroundColor: Colors.black,
+              child: _role != null
+                  ? Icon(Icons.person, color: Colors.white, size: 40)
+                  : Icon(Icons.person_outline, color: Colors.grey, size: 40),
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                // Tampilkan Dashboard jika role adalah admin, jika tidak, tampilkan Home
+                _role == 'admin'
+                    ? _buildDrawerItem(Icons.dashboard, 'Dashboard', '/admin_dashboard')
+                    : _buildDrawerItem(Icons.home, 'Home', '/home'),
+
+                _buildDrawerItem(Icons.account_circle, 'My Profile', '/user_profile',
+                    () => _checkLoginStatusAndNavigate('/user_profile')),
+                _buildDrawerItem(Icons.photo_album, 'Gallery', '/gallery'),
+                _buildDrawerItem(Icons.photo, 'Albums', '',
+                    () => _checkLoginStatusAndNavigate('/albums')),
+                _buildDrawerItem(Icons.info, 'Info', '/user_info'),
+                _buildDrawerItem(Icons.event, 'Agenda', '/user_agenda'),
+
+                if (_role != null)
+                  _buildDrawerItem(Icons.exit_to_app, 'Logout', '', _logout),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 
   // Drawer item dengan hover
   Widget _buildDrawerItem(IconData icon, String title, String route,

@@ -28,7 +28,7 @@ class _UserAgendaPageState extends State<UserAgendaPage> {
 
     try {
       final response = await http.get(
-        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/agendas'),
+        Uri.parse('http://192.168.18.2:8000/api/agendas'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

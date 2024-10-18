@@ -50,7 +50,7 @@ class _AdminAlbumFormPageState extends State<AdminAlbumFormPage> {
     var response;
     if (widget.album == null) {
       response = await http.post(
-        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/albums'),
+        Uri.parse('http://192.168.18.2:8000/api/albums'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'title': _titleController.text,
@@ -59,7 +59,7 @@ class _AdminAlbumFormPageState extends State<AdminAlbumFormPage> {
       );
     } else {
       response = await http.put(
-        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/albums/${widget.album!['id']}'),
+        Uri.parse('http://192.168.18.2:8000/api/albums/${widget.album!['id']}'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'title': _titleController.text,

@@ -10,18 +10,18 @@ class PictureDetailPage extends StatelessWidget {
 
   Future<void> downloadImageHandler(BuildContext context) async {
     try {
-      var response = await http.get(Uri.parse(imageUrl));
+      final response = await http.get(Uri.parse(imageUrl));
       if (response.statusCode == 200) {
-        downloadImage(response.bodyBytes); // Conditional import akan otomatis memilih platform
+        await downloadImage(response.bodyBytes); // Platform otomatis
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Image downloaded successfully!'),
             backgroundColor: Color(0xFF4A6FA5),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Failed to download image.'),
             backgroundColor: Colors.redAccent,
           ),
@@ -42,13 +42,11 @@ class PictureDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Picture Detail', style: TextStyle(color: Colors.white)),
-        backgroundColor: Color(0xFF4A6FA5),
+        title: const Text('Picture Detail', style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF4A6FA5),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Center(
@@ -61,7 +59,7 @@ class PictureDetailPage extends StatelessWidget {
               image: imageUrl,
               fit: BoxFit.cover,
               imageErrorBuilder: (context, error, stackTrace) {
-                return Center(
+                return const Center(
                   child: Icon(Icons.broken_image, size: 100, color: Colors.grey),
                 );
               },
@@ -71,8 +69,8 @@ class PictureDetailPage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => downloadImageHandler(context),
-        backgroundColor: Color(0xFF4A6FA5),
-        child: Icon(Icons.download, color: Colors.white),
+        backgroundColor: const Color(0xFF4A6FA5),
+        child: const Icon(Icons.download, color: Colors.white),
       ),
     );
   }

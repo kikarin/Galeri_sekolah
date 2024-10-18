@@ -24,7 +24,7 @@ class _AdminAgendaPageState extends State<AdminAgendaPage> {
     final token = prefs.getString('auth_token');
 
     final response = await http.get(
-      Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/agendas'),
+      Uri.parse('http://192.168.18.2:8000/api/agendas'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token', // Sertakan header Authorization jika diperlukan
@@ -50,7 +50,7 @@ class _AdminAgendaPageState extends State<AdminAgendaPage> {
     final token = prefs.getString('auth_token');
 
     final response = await http.delete(
-      Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/agendas/$id'),
+      Uri.parse('http://192.168.18.2:8000/api/agendas/$id'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token', // Sertakan header Authorization jika diperlukan

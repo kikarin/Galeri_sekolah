@@ -23,7 +23,7 @@ class _GalleryPageState extends State<GalleryPage> {
 
   Future<void> fetchGalleries() async {
     final response = await http.get(
-      Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/galleries'),
+      Uri.parse('http://192.168.18.2:8000/api/galleries'),
       headers: {
         'Content-Type': 'application/json',
       },

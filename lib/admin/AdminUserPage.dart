@@ -10,6 +10,7 @@ class AdminUserPage extends StatefulWidget {
 class _AdminUserPageState extends State<AdminUserPage> {
   List users = [];
   bool isLoading = true;
+  bool isSubmitting = false; // Untuk tombol loading saat add/edit
 
   @override
   void initState() {
@@ -18,12 +19,12 @@ class _AdminUserPageState extends State<AdminUserPage> {
   }
 
   Future<void> fetchUsers() async {
-    final response = await http.get(Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/users'));
+    setState(() => isLoading = true);
+    final response = await http.get(Uri.parse('http://192.168.18.2:8000/api/users'));
     if (response.statusCode == 200) {
       final List data = json.decode(response.body);
-      final filteredUsers = data.where((user) => user['role'] == 'user').toList();
       setState(() {
-        users = filteredUsers;
+        users = data.where((user) => user['role'] == 'user').toList();
         isLoading = false;
       });
     } else {
@@ -32,28 +33,41 @@ class _AdminUserPageState extends State<AdminUserPage> {
   }
 
   void showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(message),
-      backgroundColor: Colors.green,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
-void showAddEditUserDialog(BuildContext context, {Map? user}) {
-  TextEditingController nameController = TextEditingController(text: user != null ? user['name'] : '');
-  TextEditingController emailController = TextEditingController(text: user != null ? user['email'] : '');
-  TextEditingController passwordController = TextEditingController();
-  bool isEdit = user != null;
+  void showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.green),
+    );
+  }
 
-  showDialog(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: Text(isEdit ? 'Edit User' : 'Add User'),
-        content: SingleChildScrollView(
+  Future<void> showAddEditUserSheet({Map? user}) async {
+    final nameController = TextEditingController(text: user?['name'] ?? '');
+    final emailController = TextEditingController(text: user?['email'] ?? '');
+    final passwordController = TextEditingController();
+    final bool isEdit = user != null;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return Padding(
+          padding: MediaQuery.of(context).viewInsets.add(EdgeInsets.all(16)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              if (!isEdit) // Only show the name field when adding a new user
+            children: [
+              Text(
+                isEdit ? 'Edit User' : 'Add User',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 10),
+              if (!isEdit)
                 TextField(
                   controller: nameController,
                   decoration: InputDecoration(labelText: 'Name'),
@@ -67,97 +81,108 @@ void showAddEditUserDialog(BuildContext context, {Map? user}) {
                 decoration: InputDecoration(labelText: 'Password'),
                 obscureText: true,
               ),
+              SizedBox(height: 20),
+              isSubmitting
+                  ? CircularProgressIndicator()
+                  : ElevatedButton(
+                      onPressed: () async {
+                        if (!isEdit && nameController.text.isEmpty) {
+                          showError('Name is required');
+                          return;
+                        }
+                        if (emailController.text.isEmpty) {
+                          showError('Email is required');
+                          return;
+                        }
+                        if (passwordController.text.isEmpty) {
+                          showError('Password is required');
+                          return;
+                        }
+                        await handleUserSubmission(
+                          isEdit,
+                          user?['id'],
+                          nameController.text,
+                          emailController.text,
+                          passwordController.text,
+                        );
+                      },
+                      child: Text(isEdit ? 'Update' : 'Add'),
+                    ),
+              SizedBox(height: 10),
             ],
           ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (isEdit) {
-                updateUser(user!['id'], emailController.text, passwordController.text);
-              } else {
-                addUser(nameController.text, emailController.text, passwordController.text);
-              }
-              Navigator.of(context).pop();
-            },
-            child: Text(isEdit ? 'Update' : 'Add'),
-          ),
-        ],
-      );
-    },
-  );
-}
-
-void addUser(String name, String email, String password) async {
-  final response = await http.post(
-    Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/users'),
-    headers: {'Content-Type': 'application/json'},
-    body: jsonEncode({
-      'name': name,
-      'email': email,
-      'password': password,
-      'role': 'user'
-    }),
-  );
-  if (response.statusCode == 201) {
-    print('User added successfully.');
-    fetchUsers(); // Refresh the list after adding a user
-  } else {
-    print('Failed to add user.');
+        );
+      },
+    );
   }
-}
 
-void updateUser(int id, String email, String password) async {
-  final response = await http.put(
-    Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/users/$id'),
-    headers: {'Content-Type': 'application/json'},
-    body: jsonEncode({
-      'email': email,
-      'password': password
-    }),
-  );
-  if (response.statusCode == 200) {
-    print('User updated successfully.');
-    fetchUsers(); // Refresh the list after updating a user
-  } else {
-    print('Failed to update user.');
+  Future<void> handleUserSubmission(
+    bool isEdit,
+    int? id,
+    String name,
+    String email,
+    String password,
+  ) async {
+    setState(() => isSubmitting = true);
+    final response = isEdit
+        ? await http.put(
+            Uri.parse('http://192.168.18.2:8000/api/users/$id'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email, 'password': password}),
+          )
+        : await http.post(
+            Uri.parse('http://192.168.18.2:8000/api/users'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'name': name,
+              'email': email,
+              'password': password,
+              'role': 'user',
+            }),
+          );
+
+    setState(() => isSubmitting = false);
+    Navigator.pop(context); // Tutup modal
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      showSuccess(isEdit ? 'User updated successfully' : 'User added successfully');
+      fetchUsers(); // Refresh list setelah operasi berhasil
+    } else {
+      showError('Failed to ${isEdit ? 'update' : 'add'} user');
+    }
   }
-}
 
-
-  void deleteUser(int id) async {
-    showDialog(
+  Future<void> deleteUser(int id) async {
+    final shouldDelete = await showDialog<bool>(
       context: context,
-      builder: (BuildContext context) => AlertDialog(
+      builder: (context) => AlertDialog(
         title: Text('Confirm Delete'),
         content: Text('Are you sure you want to delete this user?'),
         actions: [
           TextButton(
             child: Text('Cancel'),
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.pop(context, false),
           ),
           TextButton(
             child: Text('Delete'),
-            onPressed: () async {
-              Navigator.of(context).pop();
-              final response = await http.delete(Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/users/$id'));
-              if (response.statusCode == 200) {
-                fetchUsers();
-                showError('User deleted successfully.');
-              } else {
-                showError('Failed to delete user.');
-              }
-            },
+            onPressed: () => Navigator.pop(context, true),
           ),
         ],
       ),
     );
+
+    if (shouldDelete == true) {
+      final response = await http.delete(
+        Uri.parse('http://192.168.18.2:8000/api/users/$id'),
+      );
+
+      if (response.statusCode == 200) {
+        showSuccess('User deleted successfully');
+        fetchUsers();
+      } else {
+        showError('Failed to delete user');
+      }
+    }
   }
 
   @override
@@ -168,7 +193,7 @@ void updateUser(int id, String email, String password) async {
         actions: [
           IconButton(
             icon: Icon(Icons.add),
-            onPressed: () => showAddEditUserDialog(context),
+            onPressed: () => showAddEditUserSheet(),
           ),
         ],
       ),
@@ -186,7 +211,7 @@ void updateUser(int id, String email, String password) async {
                     children: [
                       IconButton(
                         icon: Icon(Icons.edit),
-                        onPressed: () => showAddEditUserDialog(context, user: user),
+                        onPressed: () => showAddEditUserSheet(user: user),
                       ),
                       IconButton(
                         icon: Icon(Icons.delete),
