@@ -24,9 +24,7 @@ class _GalleryPageState extends State<GalleryPage> {
   Future<void> fetchGalleries() async {
     final response = await http.get(
       Uri.parse('http://192.168.18.2:8000/api/galleries'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: {'Content-Type': 'application/json'},
     );
 
     if (response.statusCode == 200) {
@@ -63,11 +61,14 @@ class _GalleryPageState extends State<GalleryPage> {
             break;
         }
       },
-      body: isLoading
-          ? _buildLoadingSkeleton()
-          : galleries.isEmpty
-              ? const Center(child: Text('No galleries available'))
-              : _buildGalleryList(),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: isLoading
+            ? _buildLoadingSkeleton()
+            : galleries.isEmpty
+                ? const Center(child: Text('No galleries available'))
+                : _buildGalleryList(),
+      ),
     );
   }
 
@@ -92,7 +93,7 @@ class _GalleryPageState extends State<GalleryPage> {
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                          color: Colors.black87,
                         ),
                       ),
                     ),
@@ -102,8 +103,9 @@ class _GalleryPageState extends State<GalleryPage> {
                             child: Text(
                               'No photos available',
                               style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontStyle: FontStyle.italic),
+                                color: Colors.grey.shade600,
+                                fontStyle: FontStyle.italic,
+                              ),
                             ),
                           ),
                     const SizedBox(height: 30),
@@ -118,7 +120,6 @@ class _GalleryPageState extends State<GalleryPage> {
     );
   }
 
-  // Grid photo yang lebih interaktif
   Widget _buildPhotoGrid(List<dynamic> photos) {
     return GridView.builder(
       shrinkWrap: true,
@@ -132,7 +133,7 @@ class _GalleryPageState extends State<GalleryPage> {
       itemCount: photos.length,
       itemBuilder: (context, photoIndex) {
         final photo = photos[photoIndex];
-        return GestureDetector(
+        return InkWell(
           onTap: () {
             Navigator.push(
               context,
@@ -143,17 +144,13 @@ class _GalleryPageState extends State<GalleryPage> {
           },
           child: Hero(
             tag: photo['id'],
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: _buildInteractivePhotoCard(photo),
-            ),
+            child: _buildInteractivePhotoCard(photo),
           ),
         );
       },
     );
   }
 
-  // Card photo yang lebih interaktif dengan efek hover dan glassmorphism
   Widget _buildInteractivePhotoCard(dynamic photo) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -174,20 +171,15 @@ class _GalleryPageState extends State<GalleryPage> {
             borderRadius: BorderRadius.circular(15),
             child: _buildPhotoImage(photo),
           ),
-          _buildGlassmorphismOverlay(
-              photo), // Overlay dengan efek glassmorphism
+          _buildGlassmorphismOverlay(photo),
         ],
       ),
     );
   }
 
-  // Membangun gambar dengan efek zoom saat hover
-  // Membangun gambar tanpa pesan error (tetap kosong jika gambar gagal dimuat)
-  // Membangun gambar dengan Shimmer saat loading dan tanpa error message saat gambar gagal dimuat
   Widget _buildPhotoImage(dynamic photo) {
     return Stack(
       children: [
-        // Shimmer sebagai efek loading
         Shimmer.fromColors(
           baseColor: Colors.grey[300]!,
           highlightColor: Colors.grey[100]!,
@@ -197,14 +189,12 @@ class _GalleryPageState extends State<GalleryPage> {
             color: Colors.grey[300],
           ),
         ),
-        // Gambar yang diambil dari network
         Image.network(
-          photo['image_url'], // URL gambar
+          photo['image_url'],
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
           loadingBuilder: (context, child, loadingProgress) {
-            // Tampilkan shimmer jika gambar masih dimuat
             if (loadingProgress == null) return child;
             return Shimmer.fromColors(
               baseColor: Colors.grey[300]!,
@@ -217,7 +207,6 @@ class _GalleryPageState extends State<GalleryPage> {
             );
           },
           errorBuilder: (context, error, stackTrace) {
-            // Jika gambar gagal dimuat, tampilkan kotak kosong tanpa pesan error
             return Container(
               color: Colors.grey[200],
             );
@@ -227,26 +216,21 @@ class _GalleryPageState extends State<GalleryPage> {
     );
   }
 
-  // Overlay dengan efek glassmorphism dan informasi
-  // Overlay dengan efek glassmorphism dan informasi
   Widget _buildGlassmorphismOverlay(dynamic photo) {
     return Positioned(
       bottom: 0,
       left: 0,
       right: 0,
       child: ClipRRect(
-        // Penting untuk membatasi area efek blur
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(15),
           bottomRight: Radius.circular(15),
         ),
         child: BackdropFilter(
-          // Menambahkan BackdropFilter di sini
-          filter: ImageFilter.blur(
-              sigmaX: 10, sigmaY: 10), // Efek blur glassmorphism
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
-            decoration: BoxDecoration(
-              color: Color.fromARGB(255, 68, 100, 150),
+            decoration: const BoxDecoration(
+              color: Color.fromARGB(150, 68, 100, 150),
             ),
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
             child: Row(
@@ -258,6 +242,7 @@ class _GalleryPageState extends State<GalleryPage> {
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
+                      overflow: TextOverflow.ellipsis,
                       shadows: [
                         Shadow(
                           blurRadius: 5.0,
@@ -265,7 +250,6 @@ class _GalleryPageState extends State<GalleryPage> {
                         ),
                       ],
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -282,7 +266,6 @@ class _GalleryPageState extends State<GalleryPage> {
     );
   }
 
-  // Skeleton loading dengan shimmer yang lebih modern
   Widget _buildLoadingSkeleton() {
     return Padding(
       padding: const EdgeInsets.all(16.0),

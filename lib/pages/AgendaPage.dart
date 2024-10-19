@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart'; // Untuk format tanggal
+import 'package:intl/intl.dart';
 import 'base_page.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -81,33 +81,22 @@ class _UserAgendaPageState extends State<UserAgendaPage> {
       currentIndex: 3,
       onNavItemTapped: _onNavItemTapped,
       body: isLoading
-          ? Center(child: CircularProgressIndicator(color: Color(0xFF446496)))
+          ? Center(
+              child: CircularProgressIndicator(
+                color: Theme.of(context).primaryColor,
+              ),
+            )
           : hasError
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error, color: Colors.red, size: 50),
-                      SizedBox(height: 16),
-                      Text(
-                        'Failed to load agendas.',
-                        style: TextStyle(fontSize: 18, color: Colors.red),
-                      ),
-                      SizedBox(height: 10),
-                      ElevatedButton(
-                        onPressed: fetchAgendas,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF446496),
-                        ),
-                        child: Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
+              ? _buildErrorState()
               : agendas.isEmpty
-                  ? Center(child: Text('No agendas available.'))
+                  ? Center(
+                      child: Text(
+                        'No agendas available.',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                    )
                   : ListView.builder(
-                      padding: EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(16),
                       itemCount: agendas.length,
                       itemBuilder: (context, index) {
                         final agenda = agendas[index];
@@ -127,18 +116,46 @@ class _UserAgendaPageState extends State<UserAgendaPage> {
                     ),
     );
   }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error, color: Colors.red, size: 50),
+          SizedBox(height: 16),
+          Text(
+            'Failed to load agendas.',
+            style: GoogleFonts.robotoSlab(
+              fontSize: 18,
+              color: Colors.red,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          SizedBox(height: 10),
+          ElevatedButton(
+            onPressed: fetchAgendas,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF446496),
+            ),
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
+// Widget untuk menampilkan setiap kartu agenda
 class AgendaCard extends StatelessWidget {
   final dynamic agenda;
 
   AgendaCard({required this.agenda});
 
-  // Fungsi untuk format tanggal dari event_date
   String _formatDate(String? eventDate) {
     if (eventDate == null) return 'No Date';
     final DateTime dateTime = DateTime.parse(eventDate);
-    return DateFormat.yMMMMd().format(dateTime); // Format: "January 1, 2023"
+    return DateFormat.yMMMMd().format(dateTime);
   }
 
   @override
@@ -148,11 +165,9 @@ class AgendaCard extends StatelessWidget {
     final String eventDate = agenda['event_date'] ?? 'No Date';
 
     return Card(
-      margin: EdgeInsets.only(bottom: 16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
@@ -172,7 +187,7 @@ class AgendaCard extends StatelessWidget {
             Row(
               children: [
                 Icon(Icons.event, color: Colors.white),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     title,
@@ -182,7 +197,7 @@ class AgendaCard extends StatelessWidget {
                       color: Colors.white,
                       shadows: [
                         Shadow(
-                          offset: Offset(1, 1),
+                          offset: const Offset(1, 1),
                           blurRadius: 3,
                           color: Colors.black38,
                         ),
@@ -192,9 +207,9 @@ class AgendaCard extends StatelessWidget {
                 ),
               ],
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Container(
-              padding: EdgeInsets.all(8.0),
+              padding: const EdgeInsets.all(8.0),
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(13),
@@ -203,20 +218,20 @@ class AgendaCard extends StatelessWidget {
                 description.length > 100
                     ? description.substring(0, 100) + '...'
                     : description,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 16,
                   color: Colors.white,
                 ),
               ),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Row(
               children: [
-                Icon(Icons.calendar_today, size: 16, color: Colors.white70),
-                SizedBox(width: 8),
+                const Icon(Icons.calendar_today, size: 16, color: Colors.white70),
+                const SizedBox(width: 8),
                 Text(
                   "Date: ${_formatDate(eventDate)}",
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 14,
                     color: Colors.white70,
                     fontStyle: FontStyle.italic,
@@ -231,18 +246,16 @@ class AgendaCard extends StatelessWidget {
   }
 }
 
-// Halaman Detail Agenda untuk melihat detail lengkap agenda
+// Halaman detail agenda
 class AgendaDetailPage extends StatelessWidget {
   final dynamic agenda;
 
   AgendaDetailPage({required this.agenda});
 
-  // Format tanggal
   String _formatDate(String? eventDate) {
     if (eventDate == null) return 'No Date';
     final DateTime dateTime = DateTime.parse(eventDate);
-    return DateFormat.yMMMMEEEEd()
-        .format(dateTime); // Format: "Monday, January 1, 2023"
+    return DateFormat.yMMMMEEEEd().format(dateTime);
   }
 
   @override
@@ -250,7 +263,7 @@ class AgendaDetailPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(agenda['title'] ?? 'Detail Agenda'),
-        backgroundColor: Color(0xFF446496),
+        backgroundColor: const Color(0xFF446496),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -262,10 +275,10 @@ class AgendaDetailPage extends StatelessWidget {
               style: GoogleFonts.robotoSlab(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF446496), // Cocokkan warna dengan BasePage
+                color: const Color(0xFF446496),
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               "Date: ${_formatDate(agenda['event_date'])}",
               style: TextStyle(
@@ -274,10 +287,10 @@ class AgendaDetailPage extends StatelessWidget {
                 fontStyle: FontStyle.italic,
               ),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             Text(
               agenda['description'] ?? 'No Description',
-              style: TextStyle(fontSize: 18, color: Colors.black87),
+              style: const TextStyle(fontSize: 18, color: Colors.black87),
             ),
           ],
         ),

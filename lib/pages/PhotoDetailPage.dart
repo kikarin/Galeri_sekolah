@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:intl/intl.dart'; // Untuk format tanggal
+import 'package:intl/intl.dart';
 
 class PhotoDetailPage extends StatefulWidget {
   final int photoId;
@@ -42,7 +42,6 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-
         setState(() {
           photo = data['photo'];
           comments = data['photo']['comments'] ?? [];
@@ -50,14 +49,10 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
           isLiked = data['is_liked'] ?? false;
           isLoading = false;
         });
-
-        print('Fetched photo details: $data');
       } else {
-        print('Failed to load photo details: ${response.body}');
         setState(() => isLoading = false);
       }
     } catch (e) {
-      print('Error: $e');
       setState(() => isLoading = false);
     }
   }
@@ -67,45 +62,24 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
     final token = prefs.getString('auth_token');
 
     if (token == null) {
-      print('Token is null. Please login first.');
       Navigator.pushReplacementNamed(context, '/login');
       return;
     }
 
+    setState(() {
+      isLiked = !isLiked;
+      likeCount += isLiked ? 1 : -1;
+    });
+
     try {
-      // Simpan nilai liked sebelumnya untuk menghindari perubahan status UI yang tidak konsisten.
-      bool previousLikedState = isLiked;
-      int previousLikeCount = likeCount;
-
-      // Optimis: Ubah state UI sebelum respons.
-      setState(() {
-        isLiked = !isLiked;
-        likeCount += isLiked ? 1 : -1;
-      });
-
-      final response = await http.post(
+      await http.post(
         Uri.parse('http://192.168.18.2:8000/api/photos/${widget.photoId}/like'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
-
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        // Jika API gagal, kembalikan state UI ke kondisi sebelumnya.
-        setState(() {
-          isLiked = previousLikedState;
-          likeCount = previousLikeCount;
-        });
-        print(
-            'Failed to toggle like: ${response.statusCode} - ${response.body}');
-      } else {
-        print('Like toggled successfully.');
-      }
     } catch (e) {
-      print('Error during like toggle: $e');
-
-      // Jika terjadi error, kembalikan state UI ke kondisi sebelumnya.
       setState(() {
         isLiked = !isLiked;
         likeCount += isLiked ? 1 : -1;
@@ -113,54 +87,41 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
     }
   }
 
-Future<void> sendComment() async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('auth_token'); // Ambil token untuk cek login
-  final userId = prefs.getInt('user_id');
-  final userName = prefs.getString('user_name');
-  final commentText = commentController.text;
+  Future<void> sendComment() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    final userId = prefs.getInt('user_id');
+    final userName = prefs.getString('user_name');
+    final commentText = commentController.text.trim();
 
-  if (token == null) {
-    // Jika token tidak ada, pengguna belum login, arahkan ke halaman login
-    print('User is not logged in. Redirecting to login page.');
-    Navigator.pushReplacementNamed(context, '/login');
-    return; // Kembalikan dari fungsi agar tidak melanjutkan eksekusi
-  }
+    if (token == null || commentText.isEmpty) return;
 
-  if (commentText.isEmpty) return; // Jika komentar kosong, tidak lanjut
+    try {
+      final response = await http.post(
+        Uri.parse('http://192.168.18.2:8000/api/comments'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'photo_id': widget.photoId,
+          'user_id': userId,
+          'content': commentText,
+        }),
+      );
 
-  try {
-    final response = await http.post(
-      Uri.parse('http://192.168.18.2:8000/api/comments'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'photo_id': widget.photoId,
-        'user_id': userId,
-        'content': commentText,
-      }),
-    );
-
-    if (response.statusCode == 201) {
-      final newComment = jsonDecode(response.body)['comment'];
-      newComment['user'] = {
-        'id': userId,
-        'name': userName ?? 'Anonim',
-      };
-      setState(() {
-        comments.add(newComment);
-        commentController.clear(); // Bersihkan kolom input setelah komentar dikirim
-      });
-    } else {
-      print('Failed to send comment: ${response.body}');
+      if (response.statusCode == 201) {
+        final newComment = jsonDecode(response.body)['comment'];
+        newComment['user'] = {'id': userId, 'name': userName ?? 'Anonim'};
+        setState(() {
+          comments.add(newComment);
+          commentController.clear();
+        });
+      }
+    } catch (e) {
+      print('Error while sending comment: $e');
     }
-  } catch (e) {
-    print('Error while sending comment: $e');
   }
-}
-
 
   Future<void> deleteComment(int commentId) async {
     final prefs = await SharedPreferences.getInstance();
@@ -187,10 +148,18 @@ Future<void> sendComment() async {
     }
   }
 
-  String formatDate(String? dateString) {
+  String _formatDate(String? dateString) {
     if (dateString == null) return 'Tidak tersedia';
     final DateTime parsedDate = DateTime.parse(dateString);
     return DateFormat('dd MMM yyyy').format(parsedDate);
+  }
+
+  String _getInitials(String name) {
+    final words = name.trim().split(' ');
+    if (words.length > 1) {
+      return '${words[0][0]}${words[1][0]}'.toUpperCase();
+    }
+    return words[0][0].toUpperCase();
   }
 
   @override
@@ -198,44 +167,36 @@ Future<void> sendComment() async {
     return Scaffold(
       appBar: AppBar(
         title: Text(photo['title'] ?? 'Photo Detail'),
-        backgroundColor: Color.fromARGB(255, 99, 130, 189),
+        backgroundColor: const Color(0xFF446496),
       ),
       body: isLoading
-          ? Center(child: CircularProgressIndicator(color: Color(0xFF5C6BC0)))
+          ? Center(
+              child: CircularProgressIndicator(
+                color: Theme.of(context).primaryColor,
+              ),
+            )
           : SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildImage(photo['image_url'] ?? ''),
-                    const SizedBox(height: 20),
-                    _buildPhotoDetails(),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            isLiked ? Icons.favorite : Icons.favorite_border,
-                            color: isLiked ? Colors.red : Colors.grey,
-                          ),
-                          onPressed: toggleLike,
-                        ),
-                        Text('$likeCount likes'),
-                      ],
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildImage(photo['image_url'] ?? ''),
+                  const SizedBox(height: 20),
+                  _buildPhotoDetails(),
+                  _buildLikeSection(),
+                  const Divider(thickness: 1.5),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Komentar',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF446496),
                     ),
-                    Divider(thickness: 1.5, color: Colors.grey.shade300),
-                    const Text(
-                      'Komentar',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color.fromARGB(255, 68, 100, 150),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    _buildCommentList(),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildCommentList(),
+                ],
               ),
             ),
       bottomNavigationBar: _buildCommentInput(),
@@ -244,9 +205,17 @@ Future<void> sendComment() async {
 
   Widget _buildImage(String imageUrl) {
     return Container(
-      constraints: BoxConstraints(minHeight: 200, maxHeight: 300),
+      constraints: const BoxConstraints(minHeight: 200, maxHeight: 300),
       width: double.infinity,
-      child: Image.network(imageUrl, fit: BoxFit.cover),
+      child: Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          color: Colors.grey[200],
+          alignment: Alignment.center,
+          child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+        ),
+      ),
     );
   }
 
@@ -254,9 +223,29 @@ Future<void> sendComment() async {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(photo['description'] ?? 'Deskripsi tidak tersedia'),
+        Text(
+          photo['description'] ?? 'Deskripsi tidak tersedia',
+          style: const TextStyle(fontSize: 16),
+        ),
         const SizedBox(height: 10),
-        Text('Tanggal: ${formatDate(photo['created_at'])}'),
+        Text('Tanggal: ${_formatDate(photo['created_at'])}'),
+      ],
+    );
+  }
+
+  Widget _buildLikeSection() {
+    return Row(
+      children: [
+        InkWell(
+          onTap: toggleLike,
+          child: Icon(
+            isLiked ? Icons.favorite : Icons.favorite_border,
+            color: isLiked ? Colors.red : Colors.grey,
+            size: 30,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text('$likeCount likes'),
       ],
     );
   }
@@ -264,13 +253,21 @@ Future<void> sendComment() async {
   Widget _buildCommentList() {
     return ListView.separated(
       shrinkWrap: true,
-      physics: NeverScrollableScrollPhysics(),
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: comments.length,
       itemBuilder: (context, index) {
         final comment = comments[index];
+        final userName = comment['user']['name'];
         return ListTile(
+          leading: CircleAvatar(
+            backgroundColor: Color.fromARGB(255, 55, 102, 160),
+            child: Text(
+              _getInitials(userName),
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
           title: Text(comment['content']),
-          subtitle: Text(comment['user']['name']),
+          subtitle: Text(userName),
           trailing: _buildDeleteIcon(comment['user']['id'], comment['id']),
         );
       },
@@ -282,15 +279,15 @@ Future<void> sendComment() async {
     return FutureBuilder<SharedPreferences>(
       future: SharedPreferences.getInstance(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return SizedBox.shrink();
+        if (!snapshot.hasData) return const SizedBox.shrink();
         final loggedInUserId = snapshot.data?.getInt('user_id');
         if (loggedInUserId == commentUserId) {
           return IconButton(
-            icon: Icon(Icons.delete, color: Colors.red),
+            icon: const Icon(Icons.delete, color: Colors.red),
             onPressed: () => deleteComment(commentId),
           );
         }
-        return SizedBox.shrink();
+        return const SizedBox.shrink();
       },
     );
   }

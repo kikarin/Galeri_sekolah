@@ -15,9 +15,9 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   bool isLoadingProfile = true;
 // ignore: unused_field
-String? _name;
+  String? _name;
 // ignore: unused_field
-String? _email;
+  String? _email;
   @override
   void initState() {
     super.initState();
@@ -105,81 +105,80 @@ String? _email;
   }
 
   // Welcome banner at the top
- Widget _buildWelcomeBanner() {
-  return Container(
-    width: double.infinity,
-    padding: EdgeInsets.symmetric(vertical: 30, horizontal: 20),
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        colors: [
-          Color.fromARGB(255, 68, 100, 150),
-          Color.fromARGB(255, 136, 165, 219)
+  Widget _buildWelcomeBanner() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color.fromARGB(255, 68, 100, 150),
+            Color.fromARGB(255, 136, 165, 219)
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: Offset(0, 5),
+          ),
         ],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
       ),
-      borderRadius: BorderRadius.circular(15),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.1),
-          blurRadius: 10,
-          offset: Offset(0, 5),
-        ),
-      ],
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          'SMKN 4 Kota Bogor Gallery',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.white.withOpacity(0.9),
-            shadows: [
-              Shadow(
-                offset: Offset(1.5, 1.5),
-                blurRadius: 4.0,
-                color: Colors.black.withOpacity(0.3),
-              ),
-            ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            'SMKN 4 Kota Bogor Gallery',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white.withOpacity(0.9),
+              shadows: [
+                Shadow(
+                  offset: Offset(1.5, 1.5),
+                  blurRadius: 4.0,
+                  color: Colors.black.withOpacity(0.3),
+                ),
+              ],
+            ),
           ),
-        ),
-        SizedBox(height: 17),
-        _buildAnimatedLogo(),  // Panggilan animasi logo
-        SizedBox(height: 10),
-        Text(
-          'Jelajahi momen terbaik yang diabadikan oleh sekolah kami',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.white.withOpacity(0.8),
+          SizedBox(height: 17),
+          _buildAnimatedLogo(), // Panggilan animasi logo
+          SizedBox(height: 10),
+          Text(
+            'Jelajahi momen terbaik yang diabadikan oleh sekolah kami',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.white.withOpacity(0.8),
+            ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
-Widget _buildAnimatedLogo() {
-  return TweenAnimationBuilder(
-    tween: Tween<double>(begin: 0, end: 1),
-    duration: Duration(seconds: 2),
-    builder: (context, value, child) {
-      return Transform.scale(
-        scale: value,
-        child: child,
-      );
-    },
-    child: Image.asset(
-      'images/LOGO.png',
-      height: 100,
-      width: 100,
-    ),
-  );
-}
-
+  Widget _buildAnimatedLogo() {
+    return TweenAnimationBuilder(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: Duration(seconds: 2),
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: value,
+          child: child,
+        );
+      },
+      child: Image.asset(
+        'images/LOGO.png',
+        height: 100,
+        width: 100,
+      ),
+    );
+  }
 
   // Featured Images Carousel
   Widget _buildFeaturedCarousel(double screenWidth) {
@@ -303,8 +302,8 @@ Widget _buildAnimatedLogo() {
           textStyle: TextStyle(fontSize: 20),
           duration: Duration(milliseconds: 2000),
         ),
-                TypewriterAnimatedText(
-          'Want to join? Tinggal Login ya gess.. 😉',          
+        TypewriterAnimatedText(
+          'Want to join? Tinggal Login ya gess.. 😉',
           textStyle: TextStyle(fontSize: 20),
           speed: Duration(milliseconds: 65),
           cursor: '|',
@@ -328,16 +327,18 @@ Widget _buildAnimatedLogo() {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildSocialIcon(Icons.facebook, 'https://web.facebook.com/people/SMK-NEGERI-4-KOTA-BOGOR/100054636630766/'),
+            _buildSocialIcon(Icons.facebook,
+                'https://web.facebook.com/people/SMK-NEGERI-4-KOTA-BOGOR/100054636630766/'),
             SizedBox(width: 20),
-            _buildSocialIcon(Icons.camera_alt, 'https://www.instagram.com/smkn4kotabogor/'),
+            _buildSocialIcon(
+                Icons.camera_alt, 'https://www.instagram.com/smkn4kotabogor/'),
             SizedBox(width: 20),
             _buildSocialIcon(Icons.web, 'https://smkn4bogor.sch.id/'),
           ],
         ),
         SizedBox(height: 20),
         Text(
-          'Contact Us: info@smkn4bogor.sch.id',
+          'By: Ilham Pauzan (Zankikarin)',
           style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
         ),
       ],

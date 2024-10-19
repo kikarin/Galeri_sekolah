@@ -141,53 +141,95 @@ class _UserProfilePageState extends State<UserProfilePage> with SingleTickerProv
     );
   }
 
-  Widget _buildProfileView() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: <Widget>[
+Widget _buildProfileView() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      _buildProfileAvatar(), // Ganti dengan fungsi ini
+      SizedBox(height: 20),
+      _buildFullWidthProfileDetail("Name", userData['name'] ?? 'N/A'),
+      SizedBox(height: 20),
+      _buildFullWidthProfileDetail("Email", userData['email'] ?? 'N/A'),
+      SizedBox(height: 40),
+      ElevatedButton(
+        onPressed: () => setState(() => isEditing = true),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF4A6FA5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+        ),
+        child: const Text("Edit Profile", style: TextStyle(color: Colors.white)),
+      ),
+    ],
+  );
+}
+
+// Fungsi Avatar Profil
+Widget _buildProfileAvatar() {
+  return Container(
+    margin: const EdgeInsets.symmetric(vertical: 20),
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black26,
+          blurRadius: 10,
+          offset: Offset(2, 2),
+        ),
+      ],
+    ),
+    child: CircleAvatar(
+      radius: 50,
+      backgroundColor: const Color(0xFF4A6FA5),
+      child: const Icon(Icons.person, size: 60, color: Colors.white),
+    ),
+  );
+}
+
+// Fungsi untuk Tampilan Detail Profil dengan Lebar Penuh
+Widget _buildFullWidthProfileDetail(String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16.0), // Padding samping
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF4A6FA5),
+          ),
+        ),
+        const SizedBox(height: 8),
         Container(
-          margin: EdgeInsets.symmetric(vertical: 20),
-          padding: EdgeInsets.all(10),
+          width: double.infinity, // Lebar penuh
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
             boxShadow: [
               BoxShadow(
-                color: Colors.black26,
-                blurRadius: 10,
-                offset: Offset(2, 2),
+                color: Colors.grey.withOpacity(0.2),
+                blurRadius: 5,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
-          child: CircleAvatar(
-            radius: 50,
-            backgroundColor: Color(0xFF4A6FA5), // Matching BasePage color
-            child: Icon(Icons.person, size: 60, color: Colors.white),
-          ),
-        ),
-        SizedBox(height: 20),
-        _buildProfileDetail("Name", userData['name'] ?? ''),
-        SizedBox(height: 20),
-        _buildProfileDetail("Email", userData['email'] ?? ''),
-        SizedBox(height: 40),
-        Center(
-          child: ElevatedButton(
-            onPressed: checkIfLoggedInAndEditProfile,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF4A6FA5), // Matching BasePage button color
-              padding: EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-            ),
-            child: Text(
-              "Edit Profile",
-              style: TextStyle(fontSize: 16, color: Colors.white),
-            ),
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 18, color: Colors.black87),
+            textAlign: TextAlign.left,
           ),
         ),
       ],
-    );
-  }
+    ),
+  );
+}
+
+
 
   Widget _buildProfileDetail(String label, String value) {
     return Column(

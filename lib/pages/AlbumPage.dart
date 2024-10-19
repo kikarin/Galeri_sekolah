@@ -12,7 +12,7 @@ class _AlbumPageState extends State<AlbumPage> with SingleTickerProviderStateMix
   List albums = [];
   List filteredAlbums = [];
   final TextEditingController searchController = TextEditingController();
-  
+
   late AnimationController _animationController;
 
   @override
@@ -20,23 +20,28 @@ class _AlbumPageState extends State<AlbumPage> with SingleTickerProviderStateMix
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 800),
     );
     fetchAlbums();
-    searchController.addListener(_filterAlbums); // Listen to changes in the search field
+    searchController.addListener(_filterAlbums); // Listen to search input changes
   }
 
   Future<void> fetchAlbums() async {
-    final response = await http.get(Uri.parse('http://192.168.18.2:8000/api/albums'));
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      setState(() {
-        albums = data;
-        filteredAlbums = data; // Initially show all albums
-      });
-      _animationController.forward(); // Start animation after data is loaded
-    } else {
-      print('Failed to load albums');
+    try {
+      final response = await http.get(Uri.parse('http://192.168.18.2:8000/api/albums'));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          albums = data;
+          filteredAlbums = data; // Show all albums initially
+        });
+        _animationController.forward(); // Start animation when loaded
+      } else {
+        _showSnackbar('Failed to load albums', Colors.redAccent);
+      }
+    } catch (e) {
+      _showSnackbar('Error loading albums', Colors.redAccent);
     }
   }
 
@@ -50,119 +55,127 @@ class _AlbumPageState extends State<AlbumPage> with SingleTickerProviderStateMix
     });
   }
 
+  void _showSnackbar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message),
+      backgroundColor: color,
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Albums', style: TextStyle(color: Colors.white)),
-        backgroundColor: Color(0xFF4A6FA5), // Matching BasePage theme
+        title: const Text('Albums', style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF4A6FA5),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pushReplacementNamed(context, '/home');
-          },
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
         ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Search bar
-            TextField(
-              controller: searchController,
-              decoration: InputDecoration(
-                hintText: 'Search albums...',
-                prefixIcon: Icon(Icons.search, color: Color(0xFF4A6FA5)),
-                filled: true,
-                fillColor: Colors.white,
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide(color: Color(0xFF4A6FA5)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide(color: Color(0xFF4A6FA5), width: 2),
-                ),
-              ),
-            ),
-            SizedBox(height: 20),
-            Expanded(
-              child: filteredAlbums.isEmpty
-                  ? Center(child: CircularProgressIndicator(color: Color(0xFF4A6FA5)))
-                  : FadeTransition(
-                      opacity: _animationController,
-                      child: GridView.builder(
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                          childAspectRatio: 4 / 3,
-                        ),
-                        itemCount: filteredAlbums.length,
-                        itemBuilder: (context, index) {
-                          final album = filteredAlbums[index];
-                          return GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => PictureListPage(albumId: album['id']),
-                                ),
-                              );
-                            },
-                            child: Card(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                              elevation: 5,
-                              shadowColor: Colors.black26,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(15),
-                                splashColor: Color(0xFF4A6FA5).withOpacity(0.3),
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => PictureListPage(albumId: album['id']),
-                                    ),
-                                  );
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.all(10.0),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.photo_album, size: 50, color: Color(0xFF4A6FA5)),
-                                      SizedBox(height: 10),
-                                      Text(
-                                        album['title'],
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black87, // Consistent text color
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-            ),
+            _buildSearchBar(),
+            const SizedBox(height: 20),
+            Expanded(child: _buildAlbumGrid()),
           ],
         ),
       ),
-      backgroundColor: Color(0xFFEBF1F6), // Matching BasePage background
+      backgroundColor: const Color(0xFFEBF1F6), // Consistent background
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return TextField(
+      controller: searchController,
+      decoration: InputDecoration(
+        hintText: 'Search albums...',
+        prefixIcon: const Icon(Icons.search, color: Color(0xFF4A6FA5)),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(vertical: 12.0),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: const BorderSide(color: Color(0xFF4A6FA5)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: const BorderSide(color: Color(0xFF4A6FA5), width: 2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAlbumGrid() {
+    if (filteredAlbums.isEmpty) {
+      return Center(
+        child: CircularProgressIndicator(color: Color(0xFF4A6FA5)),
+      );
+    }
+    return FadeTransition(
+      opacity: _animationController,
+      child: GridView.builder(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 4 / 3,
+        ),
+        itemCount: filteredAlbums.length,
+        itemBuilder: (context, index) {
+          final album = filteredAlbums[index];
+          return _buildAlbumCard(album);
+        },
+      ),
+    );
+  }
+
+  Widget _buildAlbumCard(Map album) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PictureListPage(albumId: album['id']),
+          ),
+        );
+      },
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        elevation: 5,
+        shadowColor: Colors.black26,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(15),
+          splashColor: const Color(0xFF4A6FA5).withOpacity(0.3),
+          child: Padding(
+            padding: const EdgeInsets.all(10.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.photo_album, size: 50, color: Color(0xFF4A6FA5)),
+                const SizedBox(height: 10),
+                Text(
+                  album['title'],
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
   @override
   void dispose() {
-    searchController.dispose(); // Dispose controller to avoid memory leaks
+    searchController.dispose();
     _animationController.dispose();
     super.dispose();
   }
