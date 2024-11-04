@@ -20,7 +20,7 @@ class _AdminUserPageState extends State<AdminUserPage> {
 
   Future<void> fetchUsers() async {
     setState(() => isLoading = true);
-    final response = await http.get(Uri.parse('http://192.168.18.2:8000/api/users'));
+    final response = await http.get(Uri.parse('http://192.168.137.19:8000/api/users'));
     if (response.statusCode == 200) {
       final List data = json.decode(response.body);
       setState(() {
@@ -126,12 +126,12 @@ class _AdminUserPageState extends State<AdminUserPage> {
     setState(() => isSubmitting = true);
     final response = isEdit
         ? await http.put(
-            Uri.parse('http://192.168.18.2:8000/api/users/$id'),
+            Uri.parse('http://192.168.137.19:8000/api/users/$id'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'email': email, 'password': password}),
           )
         : await http.post(
-            Uri.parse('http://192.168.18.2:8000/api/users'),
+            Uri.parse('http://192.168.137.19:8000/api/users'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'name': name,
@@ -173,7 +173,7 @@ class _AdminUserPageState extends State<AdminUserPage> {
 
     if (shouldDelete == true) {
       final response = await http.delete(
-        Uri.parse('http://192.168.18.2:8000/api/users/$id'),
+        Uri.parse('http://192.168.137.19:8000/api/users/$id'),
       );
 
       if (response.statusCode == 200) {

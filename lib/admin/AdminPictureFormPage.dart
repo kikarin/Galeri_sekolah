@@ -54,8 +54,8 @@ class _AdminPictureFormPageState extends State<AdminPictureFormPage> {
     try {
       // Tentukan URL untuk add dan edit
       final url = isEditMode
-          ? 'http://192.168.18.2:8000/api/pictures/${widget.picture!['id']}?_method=PUT'
-          : 'http://192.168.18.2:8000/api/albums/${widget.albumId}/pictures';
+          ? 'http://192.168.137.19:8000/api/pictures/${widget.picture!['id']}?_method=PUT'
+          : 'http://192.168.137.19:8000/api/albums/${widget.albumId}/pictures';
 
       // Gunakan POST untuk multipart request
       final request = http.MultipartRequest('POST', Uri.parse(url));

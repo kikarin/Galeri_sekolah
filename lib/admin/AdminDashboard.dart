@@ -36,7 +36,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     if (token != null && userId != null) {
       final response = await http.get(
-        Uri.parse('http://192.168.18.2:8000/api/users/$userId'),
+        Uri.parse('http://192.168.137.19:8000/api/users/$userId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -67,7 +67,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> fetchUserCount() async {
     final response = await http
-        .get(Uri.parse('http://192.168.18.2:8000/api/users'));
+        .get(Uri.parse('http://192.168.137.19:8000/api/users'));
     if (response.statusCode == 200) {
       final List data = json.decode(response.body);
       setState(() {
@@ -78,7 +78,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> fetchGalleryCount() async {
     final response = await http
-        .get(Uri.parse('http://192.168.18.2:8000/api/galleries'));
+        .get(Uri.parse('http://192.168.137.19:8000/api/galleries'));
     if (response.statusCode == 200) {
       final List data = json.decode(response.body);
       setState(() {
@@ -89,7 +89,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> fetchInfoCount() async {
     final response = await http
-        .get(Uri.parse('http://192.168.18.2:8000/api/infos'));
+        .get(Uri.parse('http://192.168.137.19:8000/api/infos'));
     if (response.statusCode == 200) {
       final List data = json.decode(response.body);
       setState(() {
@@ -100,7 +100,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> fetchAgendaCount() async {
     final response = await http
-        .get(Uri.parse('http://192.168.18.2:8000/api/agendas'));
+        .get(Uri.parse('http://192.168.137.19:8000/api/agendas'));
     if (response.statusCode == 200) {
       final List data = json.decode(response.body);
       setState(() {
@@ -111,7 +111,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> fetchAlbumCount() async {
     final response = await http
-        .get(Uri.parse('http://192.168.18.2:8000/api/albums'));
+        .get(Uri.parse('http://192.168.137.19:8000/api/albums'));
     if (response.statusCode == 200) {
       final List data = json.decode(response.body);
       setState(() {

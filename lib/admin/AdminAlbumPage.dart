@@ -22,7 +22,7 @@ class _AdminAlbumPageState extends State<AdminAlbumPage> {
 
   Future<void> fetchAlbums() async {
     final response = await http.get(
-      Uri.parse('http://192.168.18.2:8000/api/albums'),
+      Uri.parse('http://192.168.137.19:8000/api/albums'),
       headers: {'Content-Type': 'application/json'},
     );
 
@@ -41,7 +41,7 @@ class _AdminAlbumPageState extends State<AdminAlbumPage> {
 
   Future<void> deleteAlbum(int id) async {
     final response = await http.delete(
-      Uri.parse('http://192.168.18.2:8000/api/albums/$id'),
+      Uri.parse('http://192.168.137.19:8000/api/albums/$id'),
       headers: {'Content-Type': 'application/json'},
     );
 

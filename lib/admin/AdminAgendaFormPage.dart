@@ -60,8 +60,8 @@ class _AdminAgendaFormPageState extends State<AdminAgendaFormPage> {
 
   // Mendeteksi apakah mode edit atau tambah baru
   final url = isEditMode
-      ? 'http://192.168.18.2:8000/api/agendas/${widget.agenda!['id']}' // URL untuk edit
-      : 'http://192.168.18.2:8000/api/agendas'; // URL untuk tambah baru
+      ? 'http://192.168.137.19:8000/api/agendas/${widget.agenda!['id']}' // URL untuk edit
+      : 'http://192.168.137.19:8000/api/agendas'; // URL untuk tambah baru
 
   // Pemilihan metode HTTP berdasarkan mode
   final response = isEditMode
@@ -113,7 +113,7 @@ class _AdminAgendaFormPageState extends State<AdminAgendaFormPage> {
 
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('auth_token');
-  final url = 'http://192.168.18.2:8000/api/agendas/${widget.agenda!['id']}';
+  final url = 'http://192.168.137.19:8000/api/agendas/${widget.agenda!['id']}';
 
   final response = await http.delete(
     Uri.parse(url),

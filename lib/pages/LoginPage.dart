@@ -54,7 +54,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.18.2:8000/api/login'),
+        Uri.parse('http://192.168.137.19:8000/api/login'),
         body: {
           'email': emailController.text,
           'password': passwordController.text,
@@ -99,7 +99,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.18.2:8000/api/register'),
+        Uri.parse('http://192.168.137.19:8000/api/register'),
         body: {
           'name': nameController.text,
           'email': emailController.text,

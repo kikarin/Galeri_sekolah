@@ -55,7 +55,7 @@ class _BasePageState extends State<BasePage>
 
     if (token != null && userId != null) {
       final response = await http.get(
-        Uri.parse('http://192.168.18.2:8000/api/users/$userId'),
+        Uri.parse('http://192.168.137.19:8000/api/users/$userId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

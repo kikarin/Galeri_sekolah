@@ -24,7 +24,7 @@ class _AdminPhotoPageState extends State<AdminPhotoPage> {
 
   Future<void> fetchPhotos() async {
     final response = await http.get(
-      Uri.parse('http://192.168.18.2:8000/api/galleries/${widget.galleryId}/photos'),
+      Uri.parse('http://192.168.137.19:8000/api/galleries/${widget.galleryId}/photos'),
       headers: {
         'Content-Type': 'application/json',
       },
@@ -46,7 +46,7 @@ class _AdminPhotoPageState extends State<AdminPhotoPage> {
 
   Future<void> deletePhoto(int id) async {
     final response = await http.delete(
-      Uri.parse('http://192.168.18.2:8000/api/photos/$id'),
+      Uri.parse('http://192.168.137.19:8000/api/photos/$id'),
       headers: {
         'Content-Type': 'application/json',
       },

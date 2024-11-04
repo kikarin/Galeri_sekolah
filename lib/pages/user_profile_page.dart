@@ -37,7 +37,7 @@ class _UserProfilePageState extends State<UserProfilePage> with SingleTickerProv
     }
 
     final response = await http.get(
-      Uri.parse('http://192.168.18.2:8000/api/users/$userId'),
+      Uri.parse('http://192.168.137.19:8000/api/users/$userId'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -66,7 +66,7 @@ class _UserProfilePageState extends State<UserProfilePage> with SingleTickerProv
     final userId = prefs.getInt('user_id');
 
     final response = await http.put(
-      Uri.parse('http://192.168.18.2:8000/api/users/$userId'),
+      Uri.parse('http://192.168.137.19:8000/api/users/$userId'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',

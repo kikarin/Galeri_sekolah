@@ -58,8 +58,8 @@ class _AdminPhotoFormPageState extends State<AdminPhotoFormPage> {
 
     try {
       final url = isEditMode
-          ? 'http://192.168.18.2:8000/api/photos/${widget.photo!['id']}/update'
-          : 'http://192.168.18.2:8000/api/photos';
+          ? 'http://192.168.137.19:8000/api/photos/${widget.photo!['id']}/update'
+          : 'http://192.168.137.19:8000/api/photos';
 
       // Gunakan POST untuk update dan add (menghindari masalah PUT multipart)
       var request = http.MultipartRequest('POST', Uri.parse(url));

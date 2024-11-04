@@ -33,7 +33,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.18.2:8000/api/photos/${widget.photoId}'),
+        Uri.parse('http://192.168.137.19:8000/api/photos/${widget.photoId}'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -73,7 +73,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
 
     try {
       await http.post(
-        Uri.parse('http://192.168.18.2:8000/api/photos/${widget.photoId}/like'),
+        Uri.parse('http://192.168.137.19:8000/api/photos/${widget.photoId}/like'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -98,7 +98,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.18.2:8000/api/comments'),
+        Uri.parse('http://192.168.137.19:8000/api/comments'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
 
     try {
       final response = await http.delete(
-        Uri.parse('http://192.168.18.2:8000/api/comments/$commentId'),
+        Uri.parse('http://192.168.137.19:8000/api/comments/$commentId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

@@ -30,7 +30,7 @@ class _PictureListPageState extends State<PictureListPage> with SingleTickerProv
   Future<void> fetchPictures() async {
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.18.2:8000/api/albums/${widget.albumId}/pictures'),
+        Uri.parse('http://192.168.137.19:8000/api/albums/${widget.albumId}/pictures'),
       );
 
       if (response.statusCode == 200) {
