@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shimmer/shimmer.dart'; // Import shimmer package
+import 'package:shimmer/shimmer.dart';
 import 'PictureDetailPage.dart';
 
 class PictureListPage extends StatefulWidget {
@@ -16,6 +16,7 @@ class _PictureListPageState extends State<PictureListPage> with SingleTickerProv
   List pictures = [];
   bool isLoading = true;
   late AnimationController _animationController;
+  String _selectedSort = 'Newest'; // Default sorting option
 
   @override
   void initState() {
@@ -30,13 +31,14 @@ class _PictureListPageState extends State<PictureListPage> with SingleTickerProv
   Future<void> fetchPictures() async {
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.137.19:8000/api/albums/${widget.albumId}/pictures'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/albums/${widget.albumId}/pictures'),
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
           pictures = data;
+          _sortPictures(); // Apply initial sorting
           isLoading = false;
         });
         _animationController.forward(); // Start animation after loading
@@ -48,6 +50,29 @@ class _PictureListPageState extends State<PictureListPage> with SingleTickerProv
       _showSnackbar('Error loading pictures', Colors.redAccent);
       setState(() => isLoading = false);
     }
+  }
+
+  // Sort pictures based on the selected option
+  void _sortPictures() {
+    setState(() {
+      if (_selectedSort == 'Newest') {
+        pictures.sort((a, b) {
+          DateTime dateA = DateTime.parse(a['created_at']);
+          DateTime dateB = DateTime.parse(b['created_at']);
+          return dateB.compareTo(dateA);  // Newest first
+        });
+      } else if (_selectedSort == 'Oldest') {
+        pictures.sort((a, b) {
+          DateTime dateA = DateTime.parse(a['created_at']);
+          DateTime dateB = DateTime.parse(b['created_at']);
+          return dateA.compareTo(dateB);  // Oldest first
+        });
+      } else if (_selectedSort == 'Name') {
+        pictures.sort((a, b) {
+          return a['title'].toLowerCase().compareTo(b['title'].toLowerCase());  // Sort alphabetically
+        });
+      }
+    });
   }
 
   void _showSnackbar(String message, Color color) {
@@ -65,13 +90,51 @@ class _PictureListPageState extends State<PictureListPage> with SingleTickerProv
       ),
       body: isLoading
           ? _buildShimmerLoader()
-          : FadeTransition(
-              opacity: _animationController,
-              child: _buildPictureGrid(),
+          : Column(
+              children: [
+                _buildSortOptions(), // Dropdown for sort options
+                Expanded(
+                  child: FadeTransition(
+                    opacity: _animationController,
+                    child: _buildPictureGrid(),
+                  ),
+                ),
+              ],
             ),
       backgroundColor: const Color(0xFFEBF1F6),
     );
   }
+
+ // Dropdown for sorting options with an icon
+Widget _buildSortOptions() {
+  return Padding(
+    padding: const EdgeInsets.all(16.0),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        const Icon(Icons.sort, color: Colors.black54), // Sort icon
+        const SizedBox(width: 8), // Spacing between icon and text
+        const Text("Sort by: "),
+        DropdownButton<String>(
+          value: _selectedSort,
+          items: <String>['Newest', 'Oldest', 'Name'].map((String value) {
+            return DropdownMenuItem<String>(
+              value: value,
+              child: Text(value),
+            );
+          }).toList(),
+          onChanged: (newValue) {
+            setState(() {
+              _selectedSort = newValue!;
+              _sortPictures(); // Re-sort pictures based on new selection
+            });
+          },
+        ),
+      ],
+    ),
+  );
+}
+
 
   // GridView with pictures
   Widget _buildPictureGrid() {

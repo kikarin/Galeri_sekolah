@@ -26,24 +26,33 @@ class _AlbumPageState extends State<AlbumPage> with SingleTickerProviderStateMix
     searchController.addListener(_filterAlbums); // Listen to search input changes
   }
 
-  Future<void> fetchAlbums() async {
-    try {
-      final response = await http.get(Uri.parse('http://192.168.137.19:8000/api/albums'));
+Future<void> fetchAlbums() async {
+  try {
+    final response = await http.get(Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/albums'));
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          albums = data;
-          filteredAlbums = data; // Show all albums initially
-        });
-        _animationController.forward(); // Start animation when loaded
-      } else {
-        _showSnackbar('Failed to load albums', Colors.redAccent);
-      }
-    } catch (e) {
-      _showSnackbar('Error loading albums', Colors.redAccent);
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      
+      // Sort albums by 'created_at' from newest to oldest
+      data.sort((a, b) {
+        DateTime dateA = DateTime.parse(a['created_at']);
+        DateTime dateB = DateTime.parse(b['created_at']);
+        return dateB.compareTo(dateA);  // Newest albums first
+      });
+
+      setState(() {
+        albums = data;
+        filteredAlbums = data; // Show all albums initially
+      });
+      _animationController.forward(); // Start animation when loaded
+    } else {
+      _showSnackbar('Failed to load albums', Colors.redAccent);
     }
+  } catch (e) {
+    _showSnackbar('Error loading albums', Colors.redAccent);
   }
+}
+
 
   void _filterAlbums() {
     final query = searchController.text.toLowerCase();

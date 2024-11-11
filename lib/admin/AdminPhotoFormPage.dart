@@ -22,6 +22,7 @@ class _AdminPhotoFormPageState extends State<AdminPhotoFormPage> {
   File? _pickedImage;
   bool isLoading = false;
   bool isEditMode = false;
+  double uploadProgress = 0.0;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -49,58 +50,65 @@ class _AdminPhotoFormPageState extends State<AdminPhotoFormPage> {
     }
   }
 
-  Future<void> savePhoto() async {
-    if (!_formKey.currentState!.validate()) return;
+Future<void> savePhoto() async {
+  if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      isLoading = true;
-    });
+  setState(() {
+    isLoading = true;
+  });
 
-    try {
-      final url = isEditMode
-          ? 'http://192.168.137.19:8000/api/photos/${widget.photo!['id']}/update'
-          : 'http://192.168.137.19:8000/api/photos';
+  try {
+    final url = isEditMode
+        ? 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/photos/${widget.photo!['id']}/update'
+        : 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/photos';
 
-      // Gunakan POST untuk update dan add (menghindari masalah PUT multipart)
-      var request = http.MultipartRequest('POST', Uri.parse(url));
+    // Gunakan POST untuk update dan add
+    var request = http.MultipartRequest('POST', Uri.parse(url));
 
-      request.fields['title'] = _titleController.text;
-      request.fields['description'] = _descriptionController.text;
-      request.fields['gallery_id'] = widget.galleryId.toString();
+    // Tambahkan field data
+    request.fields['title'] = _titleController.text;
+    request.fields['description'] = _descriptionController.text;
+    request.fields['gallery_id'] = widget.galleryId.toString();
 
-      // Jika gambar dipilih, tambahkan file
-      if (_pickedImage != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'image', // Nama field di Laravel
-            _pickedImage!.path,
-          ),
-        );
-      } else if (_imageUrlController.text.isNotEmpty) {
-        request.fields['image_url'] = _imageUrlController.text;
-      } else {
-        throw Exception('Image or URL must be provided.');
-      }
+    // Tambahkan file gambar jika ada
+    if (_pickedImage != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath('image', _pickedImage!.path),
+      );
+    } else if (_imageUrlController.text.isNotEmpty) {
+      // Gunakan URL jika tidak ada file lokal
+      request.fields['image_url'] = _imageUrlController.text;
+    } else if (isEditMode) {
+      // Jika dalam mode edit tanpa perubahan gambar
+      request.fields['image_url'] = widget.photo!['image_url'];
+    } else {
+      throw Exception('Image or URL must be provided.');
+    }
 
-      // Kirim request dan dapatkan respons
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+    // Kirim request
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        Navigator.pop(context, true); // Berhasil, kembali ke halaman sebelumnya
-      } else {
-        throw Exception('Failed to save photo: ${response.body}');
-      }
-    } catch (e) {
-      _showErrorDialog(e.toString());
-    } finally {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      Navigator.pop(context, true); // Berhasil, kembali ke halaman sebelumnya
+    } else {
+      final errorResponse = jsonDecode(response.body);
+      throw Exception(
+          'Failed to save photo: ${errorResponse['error'] ?? response.body}');
+    }
+  } catch (e) {
+    _showErrorDialog(e.toString());
+  } finally {
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
+}
+
+
+
 
   void _showErrorDialog(String message) {
     showDialog(
@@ -128,16 +136,26 @@ class _AdminPhotoFormPageState extends State<AdminPhotoFormPage> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(isEditMode ? 'Edit Photo' : 'Add Photo'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: isLoading
-            ? Center(child: CircularProgressIndicator())
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: Text(isEditMode ? 'Edit Photo' : 'Add Photo'),
+    ),
+    body: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: isLoading
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(value: uploadProgress),
+                SizedBox(height: 20),
+                Text(
+                  'Uploading: ${(uploadProgress * 100).toStringAsFixed(2)}%',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ],
+            )
             : Form(
                 key: _formKey,
                 child: ListView(
@@ -155,15 +173,32 @@ class _AdminPhotoFormPageState extends State<AdminPhotoFormPage> {
                     ),
                     SizedBox(height: 20),
                     _pickedImage == null
-                        ? TextFormField(
-                            controller: _imageUrlController,
-                            decoration: InputDecoration(labelText: 'Image URL'),
-                            validator: (value) {
-                              if (value!.isEmpty && _pickedImage == null) {
-                                return 'Image URL or picked image is required';
-                              }
-                              return null;
-                            },
+                        ? Column(
+                            children: [
+                              TextFormField(
+                                controller: _imageUrlController,
+                                decoration:
+                                    InputDecoration(labelText: 'Image URL'),
+                                validator: (value) {
+                                  if (value!.isEmpty && _pickedImage == null) {
+                                    return 'Image URL or picked image is required';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              SizedBox(height: 10),
+                              Container(
+                                height: 200,
+                                width: double.infinity,
+                                color: Colors.grey[200],
+                                child: Center(
+                                  child: Text(
+                                    'No Image Selected',
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                ),
+                              ),
+                            ],
                           )
                         : Image.file(
                             _pickedImage!,

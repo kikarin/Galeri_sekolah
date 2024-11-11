@@ -35,8 +35,8 @@ class _AdminInfoFormPageState extends State<AdminInfoFormPage> {
       });
 
       final url = isEditMode
-          ? 'http://192.168.137.19:8000/api/infos/${widget.info!['id']}'
-          : 'http://192.168.137.19:8000/api/infos';
+          ? 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/infos/${widget.info!['id']}'
+          : 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/infos';
 
       final method = isEditMode ? 'PUT' : 'POST';
 

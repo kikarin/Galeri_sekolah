@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 
 class AdminPictureFormPage extends StatefulWidget {
-  final Map<String, dynamic>? picture;
   final int albumId;
 
-  AdminPictureFormPage({this.picture, required this.albumId});
+  AdminPictureFormPage({required this.albumId});
 
   @override
   _AdminPictureFormPageState createState() => _AdminPictureFormPageState();
@@ -16,63 +14,47 @@ class AdminPictureFormPage extends StatefulWidget {
 
 class _AdminPictureFormPageState extends State<AdminPictureFormPage> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _imageUrlController = TextEditingController();
-  File? _selectedImage;
+  List<File> _selectedImages = [];
   bool isLoading = false;
-  bool isEditMode = false;
 
   final picker = ImagePicker();
 
-  @override
-  void initState() {
-    super.initState();
-    if (widget.picture != null) {
-      isEditMode = true;
-      _imageUrlController.text = widget.picture!['image_url'] ?? '';
-    }
-  }
-
-  /// Fungsi untuk memilih gambar dari galeri
-  Future<void> _pickImage() async {
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
+  /// Fungsi untuk memilih beberapa gambar dari galeri
+  Future<void> _pickImages() async {
+    final pickedFiles = await picker.pickMultiImage();
+    if (pickedFiles != null) {
       setState(() {
-        _selectedImage = File(pickedFile.path);
-        _imageUrlController.clear(); // Kosongkan URL jika gambar dipilih
+        _selectedImages = pickedFiles.map((file) => File(file.path)).toList();
       });
     }
   }
 
-  /// Fungsi untuk menyimpan gambar baru atau mengupdate gambar yang ada
-  Future<void> savePicture() async {
-    if (!_formKey.currentState!.validate()) return;
+  /// Fungsi untuk menyimpan gambar baru
+  Future<void> savePictures() async {
+    if (_selectedImages.isEmpty) {
+      _showErrorDialog('Please select at least one image.');
+      return;
+    }
 
     setState(() {
       isLoading = true;
     });
 
     try {
-      // Tentukan URL untuk add dan edit
-      final url = isEditMode
-          ? 'http://192.168.137.19:8000/api/pictures/${widget.picture!['id']}?_method=PUT'
-          : 'http://192.168.137.19:8000/api/albums/${widget.albumId}/pictures';
+      final url =
+          'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/albums/${widget.albumId}/pictures';
 
-      // Gunakan POST untuk multipart request
       final request = http.MultipartRequest('POST', Uri.parse(url));
-
-      // Tambahkan field gambar atau URL
       request.fields['album_id'] = widget.albumId.toString();
-      if (_selectedImage != null) {
+
+      // Tambahkan gambar baru
+      for (var imageFile in _selectedImages) {
         request.files.add(
           await http.MultipartFile.fromPath(
-            'image', // Field name di Laravel
-            _selectedImage!.path,
+            'images[]', // Pastikan sesuai dengan API
+            imageFile.path,
           ),
         );
-      } else if (_imageUrlController.text.isNotEmpty) {
-        request.fields['image_url'] = _imageUrlController.text;
-      } else {
-        throw Exception('Please provide an image or image URL.');
       }
 
       // Kirim request dan cek respons
@@ -82,7 +64,7 @@ class _AdminPictureFormPageState extends State<AdminPictureFormPage> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         Navigator.pop(context, true); // Berhasil, kembali ke halaman sebelumnya
       } else {
-        throw Exception('Failed to save picture: ${response.body}');
+        throw Exception('Failed to save pictures: ${response.body}');
       }
     } catch (e) {
       _showErrorDialog(e.toString());
@@ -115,16 +97,10 @@ class _AdminPictureFormPageState extends State<AdminPictureFormPage> {
   }
 
   @override
-  void dispose() {
-    _imageUrlController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditMode ? 'Edit Picture' : 'Add Picture'),
+        title: const Text('Add Pictures'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -134,37 +110,29 @@ class _AdminPictureFormPageState extends State<AdminPictureFormPage> {
                 key: _formKey,
                 child: ListView(
                   children: [
-                    if (!isEditMode) // Tombol pilih gambar saat tambah baru
-                      ElevatedButton(
-                        onPressed: _pickImage,
-                        child: const Text('Pick Image from Gallery'),
-                      ),
-                    const SizedBox(height: 10),
-                    if (_selectedImage != null) // Tampilkan gambar yang dipilih
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16.0),
-                        child: Image.file(
-                          _selectedImage!,
-                          height: 150,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _imageUrlController,
-                      decoration: const InputDecoration(labelText: 'Image URL'),
-                      validator: (value) {
-                        if (_selectedImage == null &&
-                            (value == null || value.isEmpty)) {
-                          return 'Please provide an image or image URL.';
-                        }
-                        return null;
-                      },
+                    ElevatedButton(
+                      onPressed: _pickImages,
+                      child: const Text('Pick Images from Gallery'),
                     ),
+                    const SizedBox(height: 10),
+                    // Tampilkan gambar yang dipilih
+                    if (_selectedImages.isNotEmpty)
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: _selectedImages
+                            .map((image) => Image.file(
+                                  image,
+                                  height: 100,
+                                  width: 100,
+                                  fit: BoxFit.cover,
+                                ))
+                            .toList(),
+                      ),
                     const SizedBox(height: 20),
                     ElevatedButton(
-                      onPressed: isLoading ? null : savePicture,
-                      child: const Text('Save'),
+                      onPressed: isLoading ? null : savePictures,
+                      child: const Text('Save All'),
                     ),
                   ],
                 ),

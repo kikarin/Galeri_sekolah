@@ -5,18 +5,32 @@ import 'package:permission_handler/permission_handler.dart';
 
 Future<void> downloadImage(Uint8List bytes) async {
   try {
-    // Minta izin penyimpanan
-    var status = await Permission.storage.request();
-    if (status.isGranted) {
-      // Dapatkan direktori eksternal untuk menyimpan gambar
-      final directory = await getExternalStorageDirectory();
-      final path = '${directory!.path}/downloaded_image_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    // Periksa izin penyimpanan
+    if (await Permission.storage.request().isGranted ||
+        await Permission.manageExternalStorage.request().isGranted) {
+      Directory? directory;
 
-      // Simpan gambar
-      final file = File(path);
-      await file.writeAsBytes(bytes);
+      if (Platform.isAndroid) {
+        directory = Directory('/storage/emulated/0/Download');
+        if (!await directory.exists()) {
+          directory = await getExternalStorageDirectory();
+        }
+      } else if (Platform.isIOS) {
+        directory = await getApplicationDocumentsDirectory();
+      }
 
-      print('Image downloaded successfully at $path');
+      if (directory != null) {
+        final filePath =
+            '${directory.path}/downloaded_image_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+        // Simpan gambar
+        final file = File(filePath);
+        await file.writeAsBytes(bytes);
+
+        print('Image downloaded successfully at $filePath');
+      } else {
+        print('Failed to get directory');
+      }
     } else {
       print('Storage permission denied');
     }

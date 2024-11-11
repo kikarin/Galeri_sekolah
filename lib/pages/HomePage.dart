@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:url_launcher/url_launcher.dart';
 import 'base_page.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:carousel_slider/carousel_slider.dart';
@@ -14,14 +13,19 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   bool isLoadingProfile = true;
-// ignore: unused_field
   String? _name;
-// ignore: unused_field
   String? _email;
+  List<dynamic> galleryItems = [];
+  List<dynamic> infoItems = [];
+  List<dynamic> agendaItems = [];
+
   @override
   void initState() {
     super.initState();
     _fetchUserProfile();
+    _fetchGalleryItems();
+    _fetchInfoItems();
+    _fetchAgendaItems();
   }
 
   Future<void> _fetchUserProfile() async {
@@ -31,7 +35,7 @@ class _HomePageState extends State<HomePage> {
 
     if (token != null && userId != null) {
       final response = await http.get(
-        Uri.parse('http://192.168.137.19:8000/api/users/$userId'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/users/$userId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -52,6 +56,52 @@ class _HomePageState extends State<HomePage> {
           isLoadingProfile = false;
         });
       }
+    }
+  }
+
+  Future<void> _fetchGalleryItems() async {
+    final response = await http.get(Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/galleries'));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      setState(() {
+        galleryItems = (data as List).take(4).toList();
+      });
+    }
+  }
+
+  Future<void> _fetchInfoItems() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    final response = await http.get(
+      Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/infos'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      setState(() {
+        infoItems = (data as List).take(4).toList();
+      });
+    }
+  }
+
+  Future<void> _fetchAgendaItems() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    final response = await http.get(
+      Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/agendas'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      setState(() {
+        agendaItems = (data as List).take(4).toList();
+      });
     }
   }
 
@@ -95,16 +145,15 @@ class _HomePageState extends State<HomePage> {
             SizedBox(height: 20),
             _buildFeaturedCarousel(screenWidth),
             SizedBox(height: 40),
-            _buildNewsTicker(), // News Ticker
-            SizedBox(height: 90),
-            _buildFooter(),
+            _buildNewsTicker(),
+            SizedBox(height: 40),
+            _buildContentSections(),
           ],
         ),
       ),
     );
   }
 
-  // Welcome banner at the top
   Widget _buildWelcomeBanner() {
     return Container(
       width: double.infinity,
@@ -147,7 +196,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           SizedBox(height: 17),
-          _buildAnimatedLogo(), // Panggilan animasi logo
+          _buildAnimatedLogo(),
           SizedBox(height: 10),
           Text(
             'Jelajahi momen terbaik yang diabadikan oleh sekolah kami',
@@ -180,7 +229,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Featured Images Carousel
   Widget _buildFeaturedCarousel(double screenWidth) {
     return CarouselSlider(
       options: CarouselOptions(
@@ -196,7 +244,8 @@ class _HomePageState extends State<HomePage> {
       items: [
         'images/unnamed.jpg',
         'images/smkn4bogor_2.jpg',
-        'images/maxresdefault.jpg'
+        'images/maxresdefault.jpg',
+        'images/smkn4bogor_3.jpg'
       ].map((i) {
         return Builder(
           builder: (BuildContext context) {
@@ -227,7 +276,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // News ticker section
   Widget _buildNewsTicker() {
     return Container(
       padding: EdgeInsets.all(16),
@@ -254,7 +302,6 @@ class _HomePageState extends State<HomePage> {
         height: 80,
         child: Stack(
           children: [
-            // Lapisan untuk kerangka/stroke teks
             Align(
               alignment: Alignment.center,
               child: DefaultTextStyle(
@@ -269,7 +316,6 @@ class _HomePageState extends State<HomePage> {
                 child: _buildAnimatedText(),
               ),
             ),
-            // Lapisan untuk isi teks (putih)
             Align(
               alignment: Alignment.center,
               child: DefaultTextStyle(
@@ -287,7 +333,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Fungsi untuk menampilkan teks animasi
   Widget _buildAnimatedText() {
     return AnimatedTextKit(
       animatedTexts: [
@@ -315,49 +360,94 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Footer Section
-  Widget _buildFooter() {
+  Widget _buildContentSections() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '© 2024 SMKN 4 Kota Bogor',
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-        ),
-        SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildSocialIcon(Icons.facebook,
-                'https://web.facebook.com/people/SMK-NEGERI-4-KOTA-BOGOR/100054636630766/'),
-            SizedBox(width: 20),
-            _buildSocialIcon(
-                Icons.camera_alt, 'https://www.instagram.com/smkn4kotabogor/'),
-            SizedBox(width: 20),
-            _buildSocialIcon(Icons.web, 'https://smkn4bogor.sch.id/'),
-          ],
-        ),
-        SizedBox(height: 20),
-        Text(
-          'By: Ilham Pauzan (Zankikarin)',
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-        ),
+        _buildSection('Gallery', galleryItems, '/gallery'),
+        const SizedBox(height: 20),
+        _buildSection('Info', infoItems, '/user_info'),
+        const SizedBox(height: 20),
+        _buildSection('Agenda', agendaItems, '/user_agenda'),
       ],
     );
   }
 
-  Widget _buildSocialIcon(IconData icon, String url) {
-    return GestureDetector(
-      onTap: () async {
-        if (await canLaunch(url)) {
-          await launch(url);
-        } else {
-          throw 'Could not launch $url';
-        }
-      },
-      child: Icon(
-        icon,
-        color: Colors.black.withOpacity(0.8),
-        size: 30,
+  Widget _buildSection(String title, List<dynamic> items, String route) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pushNamed(context, route),
+              child: const Text('Lihat Semua', style: TextStyle(color: Colors.blue)),
+            ),
+          ],
+        ),
+        items.isEmpty
+            ? const Center(child: Text('Tidak ada konten tersedia'))
+            : Column(
+                children: items.map((item) {
+                  return title == "Gallery" 
+                      ? _buildGalleryItemCard(item) 
+                      : title == "Info" 
+                      ? _buildInfoItemCard(item) 
+                      : _buildAgendaItemCard(item);
+                }).toList(),
+              ),
+      ],
+    );
+  }
+
+  Widget _buildGalleryItemCard(dynamic item) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: ListTile(
+        leading: Image.network(
+          item['photos'][0]['image_url'] ?? '',
+          fit: BoxFit.cover,
+          width: 50,
+          height: 50,
+          errorBuilder: (context, error, stackTrace) => Icon(Icons.image, size: 50),
+        ),
+        title: Text(item['title'] ?? 'No Title'),
+        onTap: () => Navigator.pushNamed(context, '/gallery'),
+      ),
+    );
+  }
+
+  Widget _buildInfoItemCard(dynamic item) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: ListTile(
+        title: Text(item['title'] ?? 'No Title'),
+        subtitle: Text(
+          item['content'] ?? 'No Content',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        onTap: () => Navigator.pushNamed(context, '/user_info'),
+      ),
+    );
+  }
+
+  Widget _buildAgendaItemCard(dynamic item) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: ListTile(
+        title: Text(item['title'] ?? 'No Title'),
+        subtitle: Text(
+          item['description'] ?? 'No Description',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        onTap: () => Navigator.pushNamed(context, '/user_agenda'),
       ),
     );
   }

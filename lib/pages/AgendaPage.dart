@@ -13,13 +13,22 @@ class UserAgendaPage extends StatefulWidget {
 
 class _UserAgendaPageState extends State<UserAgendaPage> {
   List<dynamic> agendas = [];
+  List<dynamic> filteredAgendas = [];
   bool isLoading = true;
   bool hasError = false;
+  TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     fetchAgendas();
+    searchController.addListener(_filterAgendas);
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   Future<void> fetchAgendas() async {
@@ -28,7 +37,7 @@ class _UserAgendaPageState extends State<UserAgendaPage> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.137.19:8000/api/agendas'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/agendas'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -37,8 +46,17 @@ class _UserAgendaPageState extends State<UserAgendaPage> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+
+        // Sort the agendas by 'event_date' from newest to oldest
+        data.sort((a, b) {
+          DateTime dateA = DateTime.parse(a['event_date']);
+          DateTime dateB = DateTime.parse(b['event_date']);
+          return dateB.compareTo(dateA);  // Sort newest first
+        });
+
         setState(() {
           agendas = data;
+          filteredAgendas = agendas; // Initialize filtered list
           isLoading = false;
           hasError = false;
         });
@@ -55,6 +73,16 @@ class _UserAgendaPageState extends State<UserAgendaPage> {
         hasError = true;
       });
     }
+  }
+
+  void _filterAgendas() {
+    final keyword = searchController.text.toLowerCase();
+    setState(() {
+      filteredAgendas = agendas.where((agenda) {
+        final title = agenda['title']?.toLowerCase() ?? '';
+        return title.contains(keyword);
+      }).toList();
+    });
   }
 
   void _onNavItemTapped(int index) {
@@ -80,40 +108,59 @@ class _UserAgendaPageState extends State<UserAgendaPage> {
       title: 'Agenda',
       currentIndex: 3,
       onNavItemTapped: _onNavItemTapped,
-      body: isLoading
-          ? Center(
-              child: CircularProgressIndicator(
-                color: Theme.of(context).primaryColor,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              controller: searchController,
+              decoration: InputDecoration(
+                labelText: 'Search Agenda',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-            )
-          : hasError
-              ? _buildErrorState()
-              : agendas.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No agendas available.',
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: agendas.length,
-                      itemBuilder: (context, index) {
-                        final agenda = agendas[index];
-                        return GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    AgendaDetailPage(agenda: agenda),
-                              ),
-                            );
-                          },
-                          child: AgendaCard(agenda: agenda),
-                        );
-                      },
+            ),
+          ),
+          Expanded(
+            child: isLoading
+                ? Center(
+                    child: CircularProgressIndicator(
+                      color: Theme.of(context).primaryColor,
                     ),
+                  )
+                : hasError
+                    ? _buildErrorState()
+                    : filteredAgendas.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No agendas available.',
+                              style: Theme.of(context).textTheme.bodyLarge,
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: filteredAgendas.length,
+                            itemBuilder: (context, index) {
+                              final agenda = filteredAgendas[index];
+                              return GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          AgendaDetailPage(agenda: agenda),
+                                    ),
+                                  );
+                                },
+                                child: AgendaCard(agenda: agenda),
+                              );
+                            },
+                          ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -227,7 +274,8 @@ class AgendaCard extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                const Icon(Icons.calendar_today, size: 16, color: Colors.white70),
+                const Icon(Icons.calendar_today,
+                    size: 16, color: Colors.white70),
                 const SizedBox(width: 8),
                 Text(
                   "Date: ${_formatDate(eventDate)}",

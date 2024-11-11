@@ -46,8 +46,8 @@ Future<void> saveGallery() async {
     }
 
       final url = isEditMode
-          ? 'http://192.168.137.19:8000/api/galleries/${widget.gallery!['id']}'
-          : 'http://192.168.137.19:8000/api/galleries';
+          ? 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/galleries/${widget.gallery!['id']}'
+          : 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/galleries';
 
       final method = isEditMode ? 'PUT' : 'POST';
 

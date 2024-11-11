@@ -14,23 +14,37 @@ class GalleryPage extends StatefulWidget {
 class _GalleryPageState extends State<GalleryPage> {
   bool isLoading = true;
   List<dynamic> galleries = [];
+  List<dynamic> filteredGalleries = []; 
+  TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     fetchGalleries();
+    searchController.addListener(_filterGalleries);
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   Future<void> fetchGalleries() async {
     final response = await http.get(
-      Uri.parse('http://192.168.137.19:8000/api/galleries'),
+      Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/galleries'),
       headers: {'Content-Type': 'application/json'},
     );
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       setState(() {
-        galleries = data;
+        galleries = data..sort((a, b) {
+          DateTime dateA = DateTime.parse(a['created_at']);
+          DateTime dateB = DateTime.parse(b['created_at']);
+          return dateB.compareTo(dateA); 
+        });
+        filteredGalleries = galleries;
         isLoading = false;
       });
     } else {
@@ -38,6 +52,16 @@ class _GalleryPageState extends State<GalleryPage> {
         isLoading = false;
       });
     }
+  }
+
+  void _filterGalleries() {
+    final keyword = searchController.text.toLowerCase();
+    setState(() {
+      filteredGalleries = galleries.where((gallery) {
+        final title = gallery['title']?.toLowerCase() ?? '';
+        return title.contains(keyword);
+      }).toList();
+    });
   }
 
   @override
@@ -61,13 +85,44 @@ class _GalleryPageState extends State<GalleryPage> {
             break;
         }
       },
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        child: isLoading
-            ? _buildLoadingSkeleton()
-            : galleries.isEmpty
-                ? const Center(child: Text('No galleries available'))
-                : _buildGalleryList(),
+      body: Column(
+        children: [
+          _buildSearchField(),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: isLoading
+                  ? _buildLoadingSkeleton()
+                  : filteredGalleries.isEmpty
+                      ? const Center(child: Text('No galleries available'))
+                      : _buildGalleryList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getFullImageUrl(String imageUrl) {
+  if (imageUrl.startsWith('/storage')) {
+    return 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public$imageUrl';
+  }
+  return imageUrl; // Kembalikan URL asli jika sudah lengkap
+}
+
+
+  Widget _buildSearchField() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: TextField(
+        controller: searchController,
+        decoration: InputDecoration(
+          labelText: 'Search Gallery',
+          prefixIcon: Icon(Icons.search),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
       ),
     );
   }
@@ -80,7 +135,7 @@ class _GalleryPageState extends State<GalleryPage> {
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
-                final gallery = galleries[index];
+                final gallery = filteredGalleries[index];
                 final photos = gallery['photos'];
 
                 return Column(
@@ -112,7 +167,7 @@ class _GalleryPageState extends State<GalleryPage> {
                   ],
                 );
               },
-              childCount: galleries.length,
+              childCount: filteredGalleries.length,
             ),
           ),
         ),
@@ -121,6 +176,12 @@ class _GalleryPageState extends State<GalleryPage> {
   }
 
   Widget _buildPhotoGrid(List<dynamic> photos) {
+    photos.sort((a, b) {
+      DateTime dateA = DateTime.parse(a['created_at']); 
+      DateTime dateB = DateTime.parse(b['created_at']);
+      return dateB.compareTo(dateA); 
+    });
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -177,44 +238,50 @@ class _GalleryPageState extends State<GalleryPage> {
     );
   }
 
-  Widget _buildPhotoImage(dynamic photo) {
-    return Stack(
-      children: [
-        Shimmer.fromColors(
-          baseColor: Colors.grey[300]!,
-          highlightColor: Colors.grey[100]!,
-          child: Container(
-            width: double.infinity,
-            height: double.infinity,
-            color: Colors.grey[300],
-          ),
-        ),
-        Image.network(
-          photo['image_url'],
-          fit: BoxFit.cover,
+Widget _buildPhotoImage(dynamic photo) {
+  final String imageUrl = _getFullImageUrl(photo['image_url'] ?? '');
+  return Stack(
+    children: [
+      Shimmer.fromColors(
+        baseColor: Colors.grey[300]!,
+        highlightColor: Colors.grey[100]!,
+        child: Container(
           width: double.infinity,
           height: double.infinity,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Shimmer.fromColors(
-              baseColor: Colors.grey[300]!,
-              highlightColor: Colors.grey[100]!,
-              child: Container(
-                width: double.infinity,
-                height: double.infinity,
-                color: Colors.grey[300],
-              ),
-            );
-          },
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              color: Colors.grey[200],
-            );
-          },
+          color: Colors.grey[300],
         ),
-      ],
-    );
-  }
+      ),
+      Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Shimmer.fromColors(
+            baseColor: Colors.grey[300]!,
+            highlightColor: Colors.grey[100]!,
+            child: Container(
+              width: double.infinity,
+              height: double.infinity,
+              color: Colors.grey[300],
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.grey[200],
+            child: Center(
+              child: Icon(Icons.image_not_supported, color: Colors.grey),
+            ),
+          );
+        },
+      ),
+    ],
+  );
+}
+
+
 
   Widget _buildGlassmorphismOverlay(dynamic photo) {
     return Positioned(

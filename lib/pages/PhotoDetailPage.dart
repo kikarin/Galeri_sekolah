@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 
 class PhotoDetailPage extends StatefulWidget {
   final int photoId;
@@ -27,35 +28,39 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
     fetchPhotoDetails();
   }
 
-  Future<void> fetchPhotoDetails() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
+Future<void> fetchPhotoDetails() async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('auth_token');
 
-    try {
-      final response = await http.get(
-        Uri.parse('http://192.168.137.19:8000/api/photos/${widget.photoId}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+  try {
+    final response = await http.get(
+      Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/photos/${widget.photoId}'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() {
-          photo = data['photo'];
-          comments = data['photo']['comments'] ?? [];
-          likeCount = data['like_count'] ?? 0;
-          isLiked = data['is_liked'] ?? false;
-          isLoading = false;
-        });
-      } else {
-        setState(() => isLoading = false);
-      }
-    } catch (e) {
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      setState(() {
+        photo = data['photo'];
+        photo['image_url'] = _getFullImageUrl(photo['image_url']); // Konversi URL lokal
+        comments = data['photo']['comments'] ?? [];
+        likeCount = data['like_count'] ?? 0;
+        isLiked = data['is_liked'] ?? false;
+        isLoading = false;
+      });
+    } else {
       setState(() => isLoading = false);
     }
+  } catch (e) {
+    setState(() => isLoading = false);
   }
+}
+
+
+
 
   Future<void> toggleLike() async {
     final prefs = await SharedPreferences.getInstance();
@@ -73,7 +78,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
 
     try {
       await http.post(
-        Uri.parse('http://192.168.137.19:8000/api/photos/${widget.photoId}/like'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/photos/${widget.photoId}/like'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -98,7 +103,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.137.19:8000/api/comments'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/comments'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -129,7 +134,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
 
     try {
       final response = await http.delete(
-        Uri.parse('http://192.168.137.19:8000/api/comments/$commentId'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/comments/$commentId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -162,6 +167,23 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
     return words[0][0].toUpperCase();
   }
 
+String _getFullImageUrl(String imageUrl) {
+  if (imageUrl.startsWith('/storage')) {
+    return 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public$imageUrl';
+  } else if (imageUrl.startsWith('file:///storage')) {
+    return 'https://ujikom2024pplg.smkn4bogor.sch.id' + imageUrl.replaceFirst('file://', '');
+  }
+  return imageUrl; // Kembalikan URL asli jika sudah lengkap
+}
+
+
+
+
+  void _sharePhoto() {
+    final shareContent = '${photo['title']}\n\n${photo['description']}\n\n${photo['image_url']}';
+    Share.share(shareContent);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -171,9 +193,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
       ),
       body: isLoading
           ? Center(
-              child: CircularProgressIndicator(
-                color: Theme.of(context).primaryColor,
-              ),
+              child: CircularProgressIndicator(color: Theme.of(context).primaryColor),
             )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
@@ -183,16 +203,12 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
                   _buildImage(photo['image_url'] ?? ''),
                   const SizedBox(height: 20),
                   _buildPhotoDetails(),
-                  _buildLikeSection(),
+                  _buildActionSection(),
                   const Divider(thickness: 1.5),
                   const SizedBox(height: 10),
                   const Text(
                     'Komentar',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF446496),
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF446496)),
                   ),
                   const SizedBox(height: 10),
                   _buildCommentList(),
@@ -203,21 +219,31 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
     );
   }
 
-  Widget _buildImage(String imageUrl) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 200, maxHeight: 300),
-      width: double.infinity,
-      child: Image.network(
-        imageUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Container(
+Widget _buildImage(String imageUrl) {
+  String fullImageUrl = _getFullImageUrl(imageUrl); // Gunakan URL lengkap
+  print('Full Image URL: $fullImageUrl'); // Debugging
+  return Container(
+    constraints: const BoxConstraints(minHeight: 200, maxHeight: 300),
+    width: double.infinity,
+    child: Image.network(
+      fullImageUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        print('Error loading image: $error'); // Debugging
+        return Container(
           color: Colors.grey[200],
           alignment: Alignment.center,
           child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
-        ),
-      ),
-    );
-  }
+        );
+      },
+    ),
+  );
+}
+
+
+
+
+
 
   Widget _buildPhotoDetails() {
     return Column(
@@ -233,19 +259,37 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
     );
   }
 
-  Widget _buildLikeSection() {
+  Widget _buildActionSection() {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
         InkWell(
           onTap: toggleLike,
-          child: Icon(
-            isLiked ? Icons.favorite : Icons.favorite_border,
-            color: isLiked ? Colors.red : Colors.grey,
-            size: 30,
+          child: Row(
+            children: [
+              Icon(isLiked ? Icons.favorite : Icons.favorite_border, color: isLiked ? Colors.red : Colors.grey, size: 24),
+              const SizedBox(width: 5),
+              Text('$likeCount'),
+            ],
           ),
         ),
-        const SizedBox(width: 10),
-        Text('$likeCount likes'),
+        Row(
+          children: [
+            const Icon(Icons.comment, color: Colors.grey, size: 24),
+            const SizedBox(width: 5),
+            Text('${comments.length}'),
+          ],
+        ),
+        InkWell(
+          onTap: _sharePhoto,
+          child: Row(
+            children: [
+              const Icon(Icons.share, color: Colors.grey, size: 24),
+              const SizedBox(width: 5),
+              const Text('Share'),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -260,11 +304,8 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
         final userName = comment['user']['name'];
         return ListTile(
           leading: CircleAvatar(
-            backgroundColor: Color.fromARGB(255, 55, 102, 160),
-            child: Text(
-              _getInitials(userName),
-              style: const TextStyle(color: Colors.white),
-            ),
+            backgroundColor: const Color.fromARGB(255, 55, 102, 160),
+            child: Text(_getInitials(userName), style: const TextStyle(color: Colors.white)),
           ),
           title: Text(comment['content']),
           subtitle: Text(userName),
@@ -300,9 +341,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
           Expanded(
             child: TextField(
               controller: commentController,
-              decoration: const InputDecoration(
-                labelText: 'Tambahkan komentar...',
-              ),
+              decoration: const InputDecoration(labelText: 'Tambahkan komentar...'),
             ),
           ),
           IconButton(

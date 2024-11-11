@@ -10,7 +10,7 @@ class AdminUserPage extends StatefulWidget {
 class _AdminUserPageState extends State<AdminUserPage> {
   List users = [];
   bool isLoading = true;
-  bool isSubmitting = false; // Untuk tombol loading saat add/edit
+  bool isSubmitting = false;
 
   @override
   void initState() {
@@ -20,11 +20,11 @@ class _AdminUserPageState extends State<AdminUserPage> {
 
   Future<void> fetchUsers() async {
     setState(() => isLoading = true);
-    final response = await http.get(Uri.parse('http://192.168.137.19:8000/api/users'));
+    final response = await http.get(Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/users'));
     if (response.statusCode == 200) {
       final List data = json.decode(response.body);
       setState(() {
-        users = data.where((user) => user['role'] == 'user').toList();
+        users = data.where((user) => user['role'] == 'user' || user['role'] == 'admin').toList();
         isLoading = false;
       });
     } else {
@@ -126,12 +126,12 @@ class _AdminUserPageState extends State<AdminUserPage> {
     setState(() => isSubmitting = true);
     final response = isEdit
         ? await http.put(
-            Uri.parse('http://192.168.137.19:8000/api/users/$id'),
+            Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/users/$id'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'email': email, 'password': password}),
           )
         : await http.post(
-            Uri.parse('http://192.168.137.19:8000/api/users'),
+            Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/users'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'name': name,
@@ -142,13 +142,63 @@ class _AdminUserPageState extends State<AdminUserPage> {
           );
 
     setState(() => isSubmitting = false);
-    Navigator.pop(context); // Tutup modal
+    Navigator.pop(context);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       showSuccess(isEdit ? 'User updated successfully' : 'User added successfully');
-      fetchUsers(); // Refresh list setelah operasi berhasil
+      fetchUsers();
     } else {
       showError('Failed to ${isEdit ? 'update' : 'add'} user');
+    }
+  }
+
+  Future<void> showRoleEditDialog(int userId, String currentRole) async {
+    String selectedRole = currentRole;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Edit Role'),
+          content: DropdownButtonFormField<String>(
+            value: selectedRole,
+            items: [
+              DropdownMenuItem(value: 'user', child: Text('User')),
+              DropdownMenuItem(value: 'admin', child: Text('Admin')),
+            ],
+            onChanged: (value) => setState(() => selectedRole = value!),
+            decoration: InputDecoration(labelText: 'Role'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await updateRole(userId, selectedRole);
+              },
+              child: Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> updateRole(int userId, String role) async {
+    final response = await http.put(
+      Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/users/$userId'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'role': role}),
+    );
+
+    if (response.statusCode == 200) {
+      showSuccess('Role updated successfully');
+      fetchUsers();
+    } else {
+      showError('Failed to update role');
     }
   }
 
@@ -173,7 +223,7 @@ class _AdminUserPageState extends State<AdminUserPage> {
 
     if (shouldDelete == true) {
       final response = await http.delete(
-        Uri.parse('http://192.168.137.19:8000/api/users/$id'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/users/$id'),
       );
 
       if (response.statusCode == 200) {
@@ -212,6 +262,10 @@ class _AdminUserPageState extends State<AdminUserPage> {
                       IconButton(
                         icon: Icon(Icons.edit),
                         onPressed: () => showAddEditUserSheet(user: user),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.admin_panel_settings),
+                        onPressed: () => showRoleEditDialog(user['id'], user['role']),
                       ),
                       IconButton(
                         icon: Icon(Icons.delete),

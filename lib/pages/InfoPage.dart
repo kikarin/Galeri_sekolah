@@ -13,13 +13,22 @@ class UserInfoPage extends StatefulWidget {
 
 class _UserInfoPageState extends State<UserInfoPage> {
   List<dynamic> infos = [];
+  List<dynamic> filteredInfos = [];
   bool isLoading = true;
   bool hasError = false;
+  TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     fetchInfos();
+    searchController.addListener(_filterInfos);
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   Future<void> fetchInfos() async {
@@ -28,7 +37,7 @@ class _UserInfoPageState extends State<UserInfoPage> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.137.19:8000/api/infos'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/infos'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -37,8 +46,17 @@ class _UserInfoPageState extends State<UserInfoPage> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+
+        // Sort the info by 'created_at' from newest to oldest
+        data.sort((a, b) {
+          DateTime dateA = DateTime.parse(a['created_at']);
+          DateTime dateB = DateTime.parse(b['created_at']);
+          return dateB.compareTo(dateA); // Sort newest first
+        });
+
         setState(() {
           infos = data;
+          filteredInfos = infos; // Set filtered list as well
           isLoading = false;
           hasError = false;
         });
@@ -54,6 +72,16 @@ class _UserInfoPageState extends State<UserInfoPage> {
         hasError = true;
       });
     }
+  }
+
+  void _filterInfos() {
+    final keyword = searchController.text.toLowerCase();
+    setState(() {
+      filteredInfos = infos.where((info) {
+        final title = info['title']?.toLowerCase() ?? '';
+        return title.contains(keyword);
+      }).toList();
+    });
   }
 
   void _onNavItemTapped(int index) {
@@ -79,34 +107,53 @@ class _UserInfoPageState extends State<UserInfoPage> {
       title: 'Information',
       currentIndex: 2,
       onNavItemTapped: _onNavItemTapped,
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        child: isLoading
-            ? Center(
-                child: CircularProgressIndicator(
-                  color: Theme.of(context).primaryColor,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              controller: searchController,
+              decoration: InputDecoration(
+                labelText: 'Search Info',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              )
-            : hasError
-                ? _buildErrorState()
-                : infos.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No info available.',
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: infos.length,
-                        itemBuilder: (context, index) {
-                          final info = infos[index];
-                          return Hero(
-                            tag: 'info_${info['id']}',
-                            child: InfoCard(info: info),
-                          );
-                        },
+              ),
+            ),
+          ),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: Theme.of(context).primaryColor,
                       ),
+                    )
+                  : hasError
+                      ? _buildErrorState()
+                      : filteredInfos.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No info available.',
+                                style: Theme.of(context).textTheme.bodyLarge,
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: filteredInfos.length,
+                              itemBuilder: (context, index) {
+                                final info = filteredInfos[index];
+                                return Hero(
+                                  tag: 'info_${info['id']}',
+                                  child: InfoCard(info: info),
+                                );
+                              },
+                            ),
+            ),
+          ),
+        ],
       ),
     );
   }
