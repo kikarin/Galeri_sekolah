@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:photo_view/photo_view.dart';
 
 class PhotoDetailPage extends StatefulWidget {
   final int photoId;
@@ -28,39 +29,36 @@ class _PhotoDetailPageState extends State<PhotoDetailPage> {
     fetchPhotoDetails();
   }
 
-Future<void> fetchPhotoDetails() async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('auth_token');
+  Future<void> fetchPhotoDetails() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
 
-  try {
-    final response = await http.get(
-      Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/photos/${widget.photoId}'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
+    try {
+      final response = await http.get(
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/photos/${widget.photoId}'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      setState(() {
-        photo = data['photo'];
-        photo['image_url'] = _getFullImageUrl(photo['image_url']); // Konversi URL lokal
-        comments = data['photo']['comments'] ?? [];
-        likeCount = data['like_count'] ?? 0;
-        isLiked = data['is_liked'] ?? false;
-        isLoading = false;
-      });
-    } else {
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          photo = data['photo'];
+          photo['image_url'] = _getFullImageUrl(photo['image_url']); // Konversi URL lokal
+          comments = data['photo']['comments'] ?? [];
+          likeCount = data['like_count'] ?? 0;
+          isLiked = data['is_liked'] ?? false;
+          isLoading = false;
+        });
+      } else {
+        setState(() => isLoading = false);
+      }
+    } catch (e) {
       setState(() => isLoading = false);
     }
-  } catch (e) {
-    setState(() => isLoading = false);
   }
-}
-
-
-
 
   Future<void> toggleLike() async {
     final prefs = await SharedPreferences.getInstance();
@@ -128,6 +126,35 @@ Future<void> fetchPhotoDetails() async {
     }
   }
 
+  Future<void> editComment(int commentId, String newContent) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    try {
+      final response = await http.put(
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/comments/$commentId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'content': newContent}),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          final commentIndex = comments.indexWhere((comment) => comment['id'] == commentId);
+          if (commentIndex != -1) {
+            comments[commentIndex]['content'] = newContent;
+          }
+        });
+      } else {
+        print('Failed to edit comment: ${response.body}');
+      }
+    } catch (e) {
+      print('Error while editing comment: $e');
+    }
+  }
+
   Future<void> deleteComment(int commentId) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
@@ -167,17 +194,14 @@ Future<void> fetchPhotoDetails() async {
     return words[0][0].toUpperCase();
   }
 
-String _getFullImageUrl(String imageUrl) {
-  if (imageUrl.startsWith('/storage')) {
-    return 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public$imageUrl';
-  } else if (imageUrl.startsWith('file:///storage')) {
-    return 'https://ujikom2024pplg.smkn4bogor.sch.id' + imageUrl.replaceFirst('file://', '');
+  String _getFullImageUrl(String imageUrl) {
+    if (imageUrl.startsWith('/storage')) {
+      return 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public$imageUrl';
+    } else if (imageUrl.startsWith('file:///storage')) {
+      return 'https://ujikom2024pplg.smkn4bogor.sch.id' + imageUrl.replaceFirst('file://', '');
+    }
+    return imageUrl; // Kembalikan URL asli jika sudah lengkap
   }
-  return imageUrl; // Kembalikan URL asli jika sudah lengkap
-}
-
-
-
 
   void _sharePhoto() {
     final shareContent = '${photo['title']}\n\n${photo['description']}\n\n${photo['image_url']}';
@@ -200,7 +224,10 @@ String _getFullImageUrl(String imageUrl) {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildImage(photo['image_url'] ?? ''),
+                  GestureDetector(
+                    onTap: () => _showFullImage(context, photo['image_url'] ?? ''),
+                    child: _buildImage(photo['image_url'] ?? ''),
+                  ),
                   const SizedBox(height: 20),
                   _buildPhotoDetails(),
                   _buildActionSection(),
@@ -219,30 +246,41 @@ String _getFullImageUrl(String imageUrl) {
     );
   }
 
-Widget _buildImage(String imageUrl) {
-  String fullImageUrl = _getFullImageUrl(imageUrl); // Gunakan URL lengkap
-  print('Full Image URL: $fullImageUrl'); // Debugging
-  return Container(
-    constraints: const BoxConstraints(minHeight: 200, maxHeight: 300),
-    width: double.infinity,
-    child: Image.network(
-      fullImageUrl,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
-        print('Error loading image: $error'); // Debugging
-        return Container(
-          color: Colors.grey[200],
-          alignment: Alignment.center,
-          child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
-        );
-      },
-    ),
-  );
-}
+  Widget _buildImage(String imageUrl) {
+    String fullImageUrl = _getFullImageUrl(imageUrl); // Gunakan URL lengkap
+    return Container(
+      constraints: const BoxConstraints(minHeight: 200, maxHeight: 300),
+      width: double.infinity,
+      child: Image.network(
+        fullImageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.grey[200],
+            alignment: Alignment.center,
+            child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+          );
+        },
+      ),
+    );
+  }
 
-
-
-
+  void _showFullImage(BuildContext context, String imageUrl) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+          ),
+          body: PhotoView(
+            imageProvider: NetworkImage(imageUrl),
+            backgroundDecoration: BoxDecoration(color: Colors.black),
+          ),
+        ),
+      ),
+    );
+  }
 
 
   Widget _buildPhotoDetails() {
@@ -309,26 +347,68 @@ Widget _buildImage(String imageUrl) {
           ),
           title: Text(comment['content']),
           subtitle: Text(userName),
-          trailing: _buildDeleteIcon(comment['user']['id'], comment['id']),
+          trailing: _buildCommentActions(comment['user']['id'], comment['id'], comment['content']),
         );
       },
       separatorBuilder: (context, index) => const Divider(),
     );
   }
 
-  Widget _buildDeleteIcon(int? commentUserId, int commentId) {
+  Widget _buildCommentActions(int? commentUserId, int commentId, String currentContent) {
     return FutureBuilder<SharedPreferences>(
       future: SharedPreferences.getInstance(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const SizedBox.shrink();
         final loggedInUserId = snapshot.data?.getInt('user_id');
         if (loggedInUserId == commentUserId) {
-          return IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red),
-            onPressed: () => deleteComment(commentId),
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.blue),
+                onPressed: () => _showEditCommentDialog(commentId, currentContent),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () => deleteComment(commentId),
+              ),
+            ],
           );
         }
         return const SizedBox.shrink();
+      },
+    );
+  }
+
+  void _showEditCommentDialog(int commentId, String currentContent) {
+    final TextEditingController editController = TextEditingController(text: currentContent);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Edit Komentar'),
+          content: TextField(
+            controller: editController,
+            decoration: InputDecoration(labelText: 'Edit your comment'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                final newContent = editController.text.trim();
+                if (newContent.isNotEmpty) {
+                  editComment(commentId, newContent);
+                }
+                Navigator.pop(context);
+              },
+              child: Text('Save'),
+            ),
+          ],
+        );
       },
     );
   }

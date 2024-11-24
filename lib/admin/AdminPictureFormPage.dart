@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 
 class AdminPictureFormPage extends StatefulWidget {
   final int albumId;
@@ -16,58 +19,123 @@ class _AdminPictureFormPageState extends State<AdminPictureFormPage> {
   final _formKey = GlobalKey<FormState>();
   List<File> _selectedImages = [];
   bool isLoading = false;
+  double uploadProgress = 0.0;
 
   final picker = ImagePicker();
 
-  /// Fungsi untuk memilih beberapa gambar dari galeri
   Future<void> _pickImages() async {
-    final pickedFiles = await picker.pickMultiImage();
-    if (pickedFiles != null) {
-      setState(() {
-        _selectedImages = pickedFiles.map((file) => File(file.path)).toList();
-      });
+    try {
+      final pickedFiles = await picker.pickMultiImage();
+      if (pickedFiles != null) {
+        for (var pickedFile in pickedFiles) {
+          File file = File(pickedFile.path);
+          
+          // Hitung ukuran file dalam MB
+          double fileSize = file.lengthSync() / (1024 * 1024);
+          
+          // Validasi ukuran file (maksimal 50 MB)
+          if (fileSize > 50) {
+            _showErrorDialog(
+              'File ${p.basename(file.path)} terlalu besar (${fileSize.toStringAsFixed(2)} MB).\n'
+              'Maksimal ukuran file adalah 50 MB.'
+            );
+            continue; // Lewati file yang terlalu besar
+          }
+
+          setState(() {
+            _selectedImages.add(file);
+          });
+        }
+
+        if (_selectedImages.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${_selectedImages.length} gambar dipilih\n'
+                'Gambar akan dikompresi menjadi 90% dari kualitas asli'
+              ),
+              duration: Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      _showErrorDialog('Gagal memilih gambar: $e');
     }
   }
 
-  /// Fungsi untuk menyimpan gambar baru
+  Future<File?> compressImage(File file) async {
+    try {
+      final dir = await getTemporaryDirectory();
+      final targetPath = p.join(dir.path, '${DateTime.now().millisecondsSinceEpoch}_${p.basename(file.path)}');
+      
+      var result = await FlutterImageCompress.compressAndGetFile(
+        file.absolute.path,
+        targetPath,
+        quality: 90,
+        rotate: 0,
+      );
+      
+      return result != null ? File(result.path) : null;
+    } catch (e) {
+      print('Error during compression: $e');
+      return null;
+    }
+  }
+
   Future<void> savePictures() async {
     if (_selectedImages.isEmpty) {
-      _showErrorDialog('Please select at least one image.');
+      _showErrorDialog('Pilih minimal satu gambar.');
       return;
     }
 
     setState(() {
       isLoading = true;
+      uploadProgress = 0.0;
     });
 
     try {
-      final url =
-          'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/albums/${widget.albumId}/pictures';
-
+      final url = 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/albums/${widget.albumId}/pictures';
       final request = http.MultipartRequest('POST', Uri.parse(url));
       request.fields['album_id'] = widget.albumId.toString();
 
-      // Tambahkan gambar baru
+      // Kompresi dan tambahkan semua gambar
       for (var imageFile in _selectedImages) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'images[]', // Pastikan sesuai dengan API
-            imageFile.path,
-          ),
-        );
+        File? compressedImage = await compressImage(imageFile);
+        if (compressedImage != null) {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'images[]',
+              compressedImage.path,
+            ),
+          );
+        } else {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'images[]',
+              imageFile.path,
+            ),
+          );
+        }
       }
 
-      // Kirim request dan cek respons
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      // Kirim request tanpa monitoring progress yang berlebihan
+      final response = await request.send();
+      final responseData = await http.Response.fromStream(response);
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        Navigator.pop(context, true); // Berhasil, kembali ke halaman sebelumnya
+      if (responseData.statusCode == 200 || responseData.statusCode == 201) {
+        // Langsung kembali ke halaman sebelumnya tanpa peringatan
+        Navigator.pop(context, true);
       } else {
-        throw Exception('Failed to save pictures: ${response.body}');
+        // Hanya tampilkan error jika benar-benar gagal
+        throw Exception('Gagal mengunggah gambar');
       }
     } catch (e) {
-      _showErrorDialog(e.toString());
+      // Tampilkan dialog error hanya jika benar-benar gagal
+      if (mounted) {
+        _showErrorDialog('Gagal mengunggah gambar: ${e.toString()}');
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -77,16 +145,15 @@ class _AdminPictureFormPageState extends State<AdminPictureFormPage> {
     }
   }
 
-  /// Fungsi untuk menampilkan pesan kesalahan
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Error'),
+        title: Text('Peringatan'),
         content: Text(message),
         actions: <Widget>[
           TextButton(
-            child: const Text('Close'),
+            child: Text('Tutup'),
             onPressed: () {
               Navigator.of(ctx).pop();
             },
@@ -100,39 +167,71 @@ class _AdminPictureFormPageState extends State<AdminPictureFormPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Pictures'),
+        title: Text('Tambah Gambar'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(value: uploadProgress),
+                  SizedBox(height: 20),
+                  Text(
+                    'Uploading: ${(uploadProgress * 100).toStringAsFixed(2)}%',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ],
+              )
             : Form(
                 key: _formKey,
                 child: ListView(
                   children: [
-                    ElevatedButton(
+                    ElevatedButton.icon(
                       onPressed: _pickImages,
-                      child: const Text('Pick Images from Gallery'),
+                      icon: Icon(Icons.photo_library),
+                      label: Text('Pilih Gambar dari Galeri'),
                     ),
-                    const SizedBox(height: 10),
-                    // Tampilkan gambar yang dipilih
+                    SizedBox(height: 10),
                     if (_selectedImages.isNotEmpty)
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: _selectedImages
-                            .map((image) => Image.file(
-                                  image,
-                                  height: 100,
-                                  width: 100,
-                                  fit: BoxFit.cover,
-                                ))
-                            .toList(),
+                      Container(
+                        height: 200,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _selectedImages.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Stack(
+                                children: [
+                                  Image.file(
+                                    _selectedImages[index],
+                                    height: 200,
+                                    width: 200,
+                                    fit: BoxFit.cover,
+                                  ),
+                                  Positioned(
+                                    right: 0,
+                                    top: 0,
+                                    child: IconButton(
+                                      icon: Icon(Icons.close, color: Colors.red),
+                                      onPressed: () {
+                                        setState(() {
+                                          _selectedImages.removeAt(index);
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: isLoading ? null : savePictures,
-                      child: const Text('Save All'),
+                      child: Text('Simpan Semua'),
                     ),
                   ],
                 ),

@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'base_page.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:url_launcher/url_launcher.dart'; // Import url_launcher
 
 class HomePage extends StatefulWidget {
   @override
@@ -60,12 +61,28 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _fetchGalleryItems() async {
-    final response = await http.get(Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/galleries'));
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      setState(() {
-        galleryItems = (data as List).take(4).toList();
-      });
+    try {
+      final response = await http.get(
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/galleries')
+      );
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        
+        // Sort data berdasarkan created_at dari yang terbaru
+        data.sort((a, b) {
+          DateTime dateA = DateTime.parse(a['created_at']);
+          DateTime dateB = DateTime.parse(b['created_at']);
+          return dateB.compareTo(dateA);
+        });
+        
+        setState(() {
+          // Ambil 5 data terbaru
+          galleryItems = data.take(5).toList();
+        });
+      }
+    } catch (e) {
+      print('Error fetching gallery items: $e');
     }
   }
 
@@ -122,6 +139,15 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _launchURL() async {
+    const url = 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/ujikom_web_zan/public/';
+    if (await canLaunch(url)) {
+      await launch(url);
+    } else {
+      throw 'Could not launch $url';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BasePage(
@@ -148,6 +174,8 @@ class _HomePageState extends State<HomePage> {
             _buildNewsTicker(),
             SizedBox(height: 40),
             _buildContentSections(),
+            SizedBox(height: 20),
+            _buildWebIcon(), // Tambahkan ikon web di bagian bawah
           ],
         ),
       ),
@@ -364,12 +392,88 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSection('Gallery', galleryItems, '/gallery'),
+        _buildGallerySection(),
         const SizedBox(height: 20),
         _buildSection('Info', infoItems, '/user_info'),
         const SizedBox(height: 20),
         _buildSection('Agenda', agendaItems, '/user_agenda'),
       ],
+    );
+  }
+
+  Widget _buildGallerySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Gallery terbaru',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pushNamed(context, '/gallery'),
+              child: const Text('Lihat Semua', style: TextStyle(color: Colors.blue)),
+            ),
+          ],
+        ),
+        galleryItems.isEmpty
+            ? const Center(child: Text('Tidak ada gallery tersedia'))
+            : Column(
+                children: galleryItems.map((item) {
+                  return _buildGalleryItemCard(item);
+                }).toList(),
+              ),
+      ],
+    );
+  }
+
+  Widget _buildGalleryItemCard(dynamic item) {
+    String imageUrl = '';
+    if (item['photos'] != null && 
+        item['photos'].isNotEmpty && 
+        item['photos'][0]['image_url'] != null) {
+      // Resolve URL gambar
+      String rawUrl = item['photos'][0]['image_url'];
+      if (rawUrl.startsWith('/storage')) {
+        imageUrl = 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public${rawUrl}';
+      } else {
+        imageUrl = rawUrl;
+      }
+    }
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: ListTile(
+        leading: Container(
+          width: 50,
+          height: 50,
+          child: imageUrl.isNotEmpty
+            ? Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  print('Error loading image: $error'); // Untuk debugging
+                  return Icon(Icons.image, size: 50);
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded / 
+                            loadingProgress.expectedTotalBytes!
+                          : null,
+                    ),
+                  );
+                },
+              )
+            : Icon(Icons.image, size: 50),
+        ),
+        title: Text(item['title'] ?? 'No Title'),
+        onTap: () => Navigator.pushNamed(context, '/gallery'),
+      ),
     );
   }
 
@@ -405,23 +509,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildGalleryItemCard(dynamic item) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: ListTile(
-        leading: Image.network(
-          item['photos'][0]['image_url'] ?? '',
-          fit: BoxFit.cover,
-          width: 50,
-          height: 50,
-          errorBuilder: (context, error, stackTrace) => Icon(Icons.image, size: 50),
-        ),
-        title: Text(item['title'] ?? 'No Title'),
-        onTap: () => Navigator.pushNamed(context, '/gallery'),
-      ),
-    );
-  }
-
   Widget _buildInfoItemCard(dynamic item) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -449,6 +536,14 @@ class _HomePageState extends State<HomePage> {
         ),
         onTap: () => Navigator.pushNamed(context, '/user_agenda'),
       ),
+    );
+  }
+
+  Widget _buildWebIcon() {
+    return IconButton(
+      icon: Icon(Icons.web, color: Colors.blue, size: 30),
+      onPressed: _launchURL,
+      tooltip: 'Visit School Website',
     );
   }
 }

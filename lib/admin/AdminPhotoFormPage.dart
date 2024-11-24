@@ -3,6 +3,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 
 class AdminPhotoFormPage extends StatefulWidget {
   final int galleryId;
@@ -41,84 +44,125 @@ class _AdminPhotoFormPageState extends State<AdminPhotoFormPage> {
     try {
       final pickedFile = await _picker.pickImage(source: source);
       if (pickedFile != null) {
+        File file = File(pickedFile.path);
+        
+        // Hitung ukuran file dalam MB
+        double fileSize = file.lengthSync() / (1024 * 1024);
+        
+        // Validasi ukuran file (maksimal 50 MB)
+        if (fileSize > 50) {
+          _showErrorDialog(
+            'File terlalu besar (${fileSize.toStringAsFixed(2)} MB).\n'
+            'Maksimal ukuran file adalah 50 MB.\n'
+            'Silakan pilih file yang lebih kecil atau kompres terlebih dahulu.'
+          );
+          return;
+        }
+
         setState(() {
-          _pickedImage = File(pickedFile.path);
+          _pickedImage = file;
         });
+
+        // Tampilkan informasi ukuran file
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Ukuran file: ${fileSize.toStringAsFixed(2)} MB\n'
+              'File akan dikompresi menjadi 90% dari kualitas asli'
+            ),
+            duration: Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     } catch (e) {
-      _showErrorDialog('Failed to pick image: $e');
+      _showErrorDialog('Gagal memilih gambar: $e');
     }
   }
 
-Future<void> savePhoto() async {
-  if (!_formKey.currentState!.validate()) return;
-
-  setState(() {
-    isLoading = true;
-  });
-
-  try {
-    final url = isEditMode
-        ? 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/photos/${widget.photo!['id']}/update'
-        : 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/photos';
-
-    // Gunakan POST untuk update dan add
-    var request = http.MultipartRequest('POST', Uri.parse(url));
-
-    // Tambahkan field data
-    request.fields['title'] = _titleController.text;
-    request.fields['description'] = _descriptionController.text;
-    request.fields['gallery_id'] = widget.galleryId.toString();
-
-    // Tambahkan file gambar jika ada
-    if (_pickedImage != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath('image', _pickedImage!.path),
+  Future<File?> compressImage(File file) async {
+    try {
+      final dir = await getTemporaryDirectory();
+      final targetPath = p.join(dir.path, '${DateTime.now().millisecondsSinceEpoch}.jpg');
+      
+      var result = await FlutterImageCompress.compressAndGetFile(
+        file.absolute.path,
+        targetPath,
+        quality: 90, // Ubah kompresi menjadi 90%
+        rotate: 0,
       );
-    } else if (_imageUrlController.text.isNotEmpty) {
-      // Gunakan URL jika tidak ada file lokal
-      request.fields['image_url'] = _imageUrlController.text;
-    } else if (isEditMode) {
-      // Jika dalam mode edit tanpa perubahan gambar
-      request.fields['image_url'] = widget.photo!['image_url'];
-    } else {
-      throw Exception('Image or URL must be provided.');
-    }
-
-    // Kirim request
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      Navigator.pop(context, true); // Berhasil, kembali ke halaman sebelumnya
-    } else {
-      final errorResponse = jsonDecode(response.body);
-      throw Exception(
-          'Failed to save photo: ${errorResponse['error'] ?? response.body}');
-    }
-  } catch (e) {
-    _showErrorDialog(e.toString());
-  } finally {
-    if (mounted) {
-      setState(() {
-        isLoading = false;
-      });
+      
+      return result != null ? File(result.path) : null;
+    } catch (e) {
+      print('Error during compression: $e');
+      return null;
     }
   }
-}
 
+  Future<void> savePhoto() async {
+    if (!_formKey.currentState!.validate()) return;
 
+    setState(() {
+      isLoading = true;
+      uploadProgress = 0.0;
+    });
 
+    try {
+      final url = isEditMode
+          ? 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/photos/${widget.photo!['id']}/update'
+          : 'https://ujikom2024pplg.smkn4bogor.sch.id/0059495358/backend/public/api/photos';
+
+      var request = http.MultipartRequest('POST', Uri.parse(url));
+
+      request.fields['title'] = _titleController.text;
+      request.fields['description'] = _descriptionController.text;
+      request.fields['gallery_id'] = widget.galleryId.toString();
+
+      if (_pickedImage != null) {
+        File? compressedImage = await compressImage(_pickedImage!);
+        if (compressedImage != null) {
+          request.files.add(
+            await http.MultipartFile.fromPath('image', compressedImage.path),
+          );
+        } else {
+          request.files.add(
+            await http.MultipartFile.fromPath('image', _pickedImage!.path),
+          );
+        }
+      } else if (_imageUrlController.text.isNotEmpty) {
+        request.fields['image_url'] = _imageUrlController.text;
+      } else if (isEditMode) {
+        request.fields['image_url'] = widget.photo!['image_url'];
+      }
+
+      final response = await request.send();
+      final responseData = await http.Response.fromStream(response);
+
+      if (responseData.statusCode == 200 || responseData.statusCode == 201) {
+        Navigator.pop(context, true);
+      } else {
+        throw Exception('Gagal menyimpan foto');
+      }
+    } catch (e) {
+      _showErrorDialog('Gagal menyimpan foto: ${e.toString()}');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
 
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Error'),
+        title: Text('Peringatan'),
         content: Text(message),
         actions: [
           TextButton(
-            child: Text('Close'),
+            child: Text('Tutup'),
             onPressed: () {
               Navigator.of(ctx).pop();
             },
@@ -136,26 +180,26 @@ Future<void> savePhoto() async {
     super.dispose();
   }
 
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      title: Text(isEditMode ? 'Edit Photo' : 'Add Photo'),
-    ),
-    body: Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: isLoading
-          ? Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(value: uploadProgress),
-                SizedBox(height: 20),
-                Text(
-                  'Uploading: ${(uploadProgress * 100).toStringAsFixed(2)}%',
-                  style: TextStyle(fontSize: 16),
-                ),
-              ],
-            )
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(isEditMode ? 'Edit Photo' : 'Add Photo'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: isLoading
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(value: uploadProgress),
+                  SizedBox(height: 20),
+                  Text(
+                    'Uploading: ${(uploadProgress * 100).toStringAsFixed(2)}%',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ],
+              )
             : Form(
                 key: _formKey,
                 child: ListView(
